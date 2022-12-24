@@ -1,5 +1,5 @@
 /*
-	websurf - surf the web for data recursively
+	Wecr - crawl the web for data
 	Copyright (C) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)
 
 	This program is free software: you can redistribute it and/or modify
@@ -24,14 +24,15 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"time"
-	"unbewohnte/websurf/config"
-	"unbewohnte/websurf/logger"
-	"unbewohnte/websurf/web"
-	"unbewohnte/websurf/worker"
+	"unbewohnte/wecr/config"
+	"unbewohnte/wecr/logger"
+	"unbewohnte/wecr/web"
+	"unbewohnte/wecr/worker"
 )
 
 const (
@@ -78,7 +79,7 @@ func init() {
 
 	if *version {
 		fmt.Printf(
-			"webscrape - scrape the web\n(c) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)\n\n",
+			"Webcrawl - crawl the web for data\n(c) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)\n\n",
 		)
 		os.Exit(0)
 	}
@@ -152,12 +153,22 @@ func main() {
 	}
 
 	// sanitize and correct inputs
-	if len(conf.InitialDomains) == 0 {
-		logger.Warning("No initial domain URLs have been set")
+	if len(conf.InitialPages) == 0 {
+		logger.Warning("No initial page URLs have been set")
 		return
-	} else if len(conf.InitialDomains) != 0 && conf.InitialDomains[0] == "" {
-		logger.Warning("No initial domain URLs have been set")
+	} else if len(conf.InitialPages) != 0 && conf.InitialPages[0] == "" {
+		logger.Warning("No initial page URLs have been set")
 		return
+	}
+
+	for index, blacklistedDomain := range conf.BlacklistedDomains {
+		parsedURL, err := url.Parse(blacklistedDomain)
+		if err != nil {
+			logger.Warning("Failed to parse blacklisted %s: %s", blacklistedDomain, err)
+			continue
+		}
+
+		conf.BlacklistedDomains[index] = parsedURL.Host
 	}
 
 	if conf.Depth <= 0 {
@@ -215,9 +226,9 @@ func main() {
 	results := make(chan web.Result, conf.Workers*5)
 
 	// create initial jobs
-	for _, initialDomain := range conf.InitialDomains {
+	for _, initialPage := range conf.InitialPages {
 		jobs <- web.Job{
-			URL:    initialDomain,
+			URL:    initialPage,
 			Search: conf.Search,
 			Depth:  conf.Depth,
 		}
@@ -225,8 +236,9 @@ func main() {
 
 	// form a worker pool
 	workerPool := worker.NewWorkerPool(jobs, results, conf.Workers, worker.WorkerConf{
-		Requests: conf.Requests,
-		Save:     conf.Save,
+		Requests:           conf.Requests,
+		Save:               conf.Save,
+		BlacklistedDomains: conf.BlacklistedDomains,
 	})
 	logger.Info("Created a worker pool with %d workers", conf.Workers)
 

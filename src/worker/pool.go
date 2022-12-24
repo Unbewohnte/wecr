@@ -1,5 +1,5 @@
 /*
-	websurf - surf the web for data recursively
+	Wecr - crawl the web for data
 	Copyright (C) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)
 
 	This program is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@ package worker
 import (
 	"sync"
 	"time"
-	"unbewohnte/websurf/web"
+	"unbewohnte/wecr/web"
 )
 
 type visited struct {

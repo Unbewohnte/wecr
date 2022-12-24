@@ -1,8 +1,8 @@
-# Websurf
+# Wecr - simple web crawler 
 
 ## Overview
 
-Just a simple HTML web spider with minimal dependencies. It is possible to search for pages with a text on them or for the text itself, extract images and save pages that satisfy the criteria along the way.
+Just a simple HTML web spider with minimal dependencies. It is possible to search for pages with a text on them or for the text itself, extract images and save pages that satisfy the criteria along the way. 
 
 ## Configuration
 
@@ -10,6 +10,7 @@ The flow of work fully depends on the configuration file. By default `conf.json`
 
 The configuration is split into different branches like `requests` (how requests are made, ie: request timeout, wait time, user agent), `logging` (use logs, output to a file), `save` (output file|directory, save pages or not) or `search` (use regexp, query string) each of which contain tweakable parameters. There are global ones as well such as `workers` (working threads that make requests in parallel) and `depth` (literally, how deep the recursive search should go). The names are simple and self-explanatory so no attribute-by-attribute explanation needed for most of them.
 
+The parsing starts from `initial_pages` and goes deeper while ignoring the pages on domains that are in `blacklisted_domains`. If all initial pages are happen to be blacklisted - the program will end.
 
 ### Search query
 

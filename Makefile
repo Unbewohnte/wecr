@@ -1,5 +1,5 @@
 SRCDIR:=src
-EXE:=websurf
+EXE:=wecr
 TESTDIR:=testing
 
 all:

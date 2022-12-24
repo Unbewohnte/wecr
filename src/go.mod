@@ -1,4 +1,4 @@
-module unbewohnte/websurf
+module unbewohnte/wecr
 
 go 1.18
 

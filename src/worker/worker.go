@@ -1,5 +1,5 @@
 /*
-	websurf - surf the web for data recursively
+	Wecr - crawl the web for data
 	Copyright (C) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)
 
 	This program is free software: you can redistribute it and/or modify
@@ -28,14 +28,15 @@ import (
 	"path/filepath"
 	"regexp"
 	"time"
-	"unbewohnte/websurf/config"
-	"unbewohnte/websurf/logger"
-	"unbewohnte/websurf/web"
+	"unbewohnte/wecr/config"
+	"unbewohnte/wecr/logger"
+	"unbewohnte/wecr/web"
 )
 
 type WorkerConf struct {
-	Requests config.Requests
-	Save     config.Save
+	Requests           config.Requests
+	Save               config.Save
+	BlacklistedDomains []string
 }
 
 type Worker struct {
@@ -70,14 +71,31 @@ func (w *Worker) Work() {
 			return
 		}
 
+		// see if the domain is not blacklisted
+		var skip bool = false
+		parsedURL, err := url.Parse(job.URL)
+		if err != nil {
+			logger.Error("Failed to parse URL \"%s\" to get hostname: %s", job.URL, err)
+			continue
+		}
+		for _, blacklistedDomain := range w.Conf.BlacklistedDomains {
+			if parsedURL.Hostname() == blacklistedDomain {
+				skip = true
+				logger.Info("Skipping blacklisted %s", job.URL)
+				break
+			}
+		}
+		if skip {
+			continue
+		}
+
 		// check if it is the first occurence
 		w.visited.Lock.Lock()
-		var skip bool = false
 		for _, visitedURL := range w.visited.URLs {
 			if job.URL == visitedURL {
 				// okay, don't even bother. Move onto the next job
 				skip = true
-				logger.Info("Skipping %s", job.URL)
+				logger.Info("Skipping visited %s", job.URL)
 				w.visited.Lock.Unlock()
 				break
 			}
@@ -136,12 +154,6 @@ func (w *Worker) Work() {
 
 		case config.QueryImages:
 			// find image URLs, output data to the file
-			parsedURL, err := url.Parse(job.URL)
-			if err != nil {
-				logger.Error("Failed to parse URL \"%s\" to get hostname: %s", job.URL, err)
-				continue
-			}
-
 			imageLinks := web.FindPageImages(pageData, parsedURL.Host)
 
 			for count, imageLink := range imageLinks {

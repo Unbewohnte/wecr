@@ -1,5 +1,5 @@
 /*
-	websurf - surf the web for data recursively
+	Wecr - crawl the web for data
 	Copyright (C) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)
 
 	This program is free software: you can redistribute it and/or modify
@@ -52,13 +52,14 @@ type Logging struct {
 }
 
 type Conf struct {
-	Search         Search   `json:"search"`
-	Requests       Requests `json:"requests"`
-	Depth          uint     `json:"depth"`
-	Workers        uint     `json:"workers"`
-	InitialDomains []string `json:"initial_domains"`
-	Save           Save     `json:"save"`
-	Logging        Logging  `json:"logging"`
+	Search             Search   `json:"search"`
+	Requests           Requests `json:"requests"`
+	Depth              uint     `json:"depth"`
+	Workers            uint     `json:"workers"`
+	InitialPages       []string `json:"initial_pages"`
+	BlacklistedDomains []string `json:"blacklisted_domains"`
+	Save               Save     `json:"save"`
+	Logging            Logging  `json:"logging"`
 }
 
 func Default() *Conf {
@@ -77,9 +78,10 @@ func Default() *Conf {
 			WaitTimeoutMs:  1500,
 			RequestPauseMs: 100,
 		},
-		InitialDomains: []string{""},
-		Depth:          5,
-		Workers:        20,
+		InitialPages:       []string{""},
+		Depth:              5,
+		Workers:            20,
+		BlacklistedDomains: []string{""},
 		Logging: Logging{
 			OutputLogs: true,
 			LogsFile:   "logs.log",
