@@ -59,6 +59,62 @@ func NewWorker(jobs chan web.Job, results chan web.Result, conf WorkerConf, visi
 	}
 }
 
+func (w *Worker) outputImages(baseURL *url.URL, imageLinks []string) {
+	var alreadyProcessedImgUrls []string
+	for count, imageLink := range imageLinks {
+		// check if this URL has been processed already
+		var skipImage bool = false
+		for _, processedURL := range alreadyProcessedImgUrls {
+			if imageLink == processedURL {
+				skipImage = true
+				break
+			}
+		}
+		if skipImage {
+			skipImage = false
+			continue
+		} else {
+			alreadyProcessedImgUrls = append(alreadyProcessedImgUrls, imageLink)
+		}
+
+		var imageName string = fmt.Sprintf("%s_%d_%s", baseURL.Host, count, path.Base(imageLink))
+
+		response, err := http.Get(imageLink)
+		if err != nil {
+			logger.Error("Failed to get %s", imageLink)
+			continue
+		}
+
+		imageFile, err := os.Create(filepath.Join(w.Conf.Save.OutputDir, imageName))
+		if err != nil {
+			logger.Error("Failed to create image file \"%s\": %s", imageName, err)
+			continue
+		}
+
+		_, _ = io.Copy(imageFile, response.Body)
+
+		response.Body.Close()
+		imageFile.Close()
+
+		logger.Info("Outputted \"%s\"", imageName)
+		w.stats.MatchesFound++
+	}
+}
+
+func (w *Worker) savePage(baseURL *url.URL, pageData []byte) {
+	if w.Conf.Save.SavePages && w.Conf.Save.OutputDir != "" {
+		var pageName string = fmt.Sprintf("%s_%s.html", baseURL.Host, path.Base(baseURL.String()))
+		pageFile, err := os.Create(filepath.Join(w.Conf.Save.OutputDir, pageName))
+		if err != nil {
+			logger.Error("Failed to create page of \"%s\": %s", baseURL.String(), err)
+		} else {
+			pageFile.Write(pageData)
+		}
+
+		pageFile.Close()
+	}
+}
+
 func (w *Worker) Work() {
 	if w.Stopped {
 		return
@@ -153,32 +209,10 @@ func (w *Worker) Work() {
 			}
 
 		case config.QueryImages:
-			// find image URLs, output data to the file
+			// find image URLs, output images to the file while not saving already outputted ones
 			imageLinks := web.FindPageImages(pageData, parsedURL.Host)
 
-			for count, imageLink := range imageLinks {
-				var imageName string = fmt.Sprintf("%s_%d_%s", parsedURL.Host, count, path.Base(imageLink))
-
-				response, err := http.Get(imageLink)
-				if err != nil {
-					logger.Error("Failed to get %s", imageLink)
-					continue
-				}
-
-				imageFile, err := os.Create(filepath.Join(w.Conf.Save.OutputDir, imageName))
-				if err != nil {
-					logger.Error("Failed to create image file \"%s\": %s", imageName, err)
-					continue
-				}
-
-				_, _ = io.Copy(imageFile, response.Body)
-
-				response.Body.Close()
-				imageFile.Close()
-
-				logger.Info("Outputted \"%s\"", imageName)
-				w.stats.MatchesFound++
-			}
+			w.outputImages(parsedURL, imageLinks)
 
 			if len(imageLinks) > 0 {
 				savePage = true
@@ -223,22 +257,8 @@ func (w *Worker) Work() {
 			}
 
 			// save page
-			if savePage && w.Conf.Save.SavePages && w.Conf.Save.OutputDir != "" {
-				url, err := url.Parse(job.URL)
-				if err != nil {
-					logger.Error("Failed to parse \"%s\" to save page: %s", job.URL, err)
-					break
-				}
-
-				var pageName string = fmt.Sprintf("%s_%s.html", url.Host, path.Base(job.URL))
-				pageFile, err := os.Create(filepath.Join(w.Conf.Save.OutputDir, pageName))
-				if err != nil {
-					logger.Error("Failed to create page of \"%s\": %s", job.URL, err)
-				} else {
-					pageFile.Write(pageData)
-				}
-
-				pageFile.Close()
+			if savePage {
+				w.savePage(parsedURL, pageData)
 			}
 
 			// sleep before the next request
