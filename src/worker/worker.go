@@ -81,7 +81,7 @@ func (w *Worker) outputImages(baseURL *url.URL, imageLinks []string) {
 
 		response, err := http.Get(imageLink)
 		if err != nil {
-			logger.Error("Failed to get %s", imageLink)
+			logger.Error("Failed to get image %s", imageLink)
 			continue
 		}
 

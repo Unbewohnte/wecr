@@ -20,9 +20,8 @@ package web
 
 import (
 	"bytes"
-	"net/url"
+	"fmt"
 	"strings"
-	"unbewohnte/wecr/logger"
 
 	"golang.org/x/net/html"
 )
@@ -65,27 +64,34 @@ func FindPageImages(pageBody []byte, hostname string) []string {
 				continue
 			}
 
-			// recheck
 			for _, attribute := range token.Attr {
 				if attribute.Key != "src" && attribute.Key != "href" {
 					continue
 				}
 
-				var imageURLString string
+				var imageURL string = attribute.Val
 
-				imageURL, err := url.Parse(attribute.Val)
-				if err != nil {
-					logger.Error("Failed to parse URL %s: %s", attribute.Val, err)
-					continue
+				if !strings.Contains(imageURL, hostname) {
+					// add hostname
+					if strings.HasPrefix(imageURL, "/") && strings.HasSuffix(hostname, "/") {
+						imageURL = fmt.Sprintf("%s%s", hostname, imageURL[1:])
+					} else if !strings.HasPrefix(imageURL, "/") && !strings.HasSuffix(hostname, "/") {
+						imageURL = fmt.Sprintf("%s/%s", hostname, imageURL)
+					} else {
+						imageURL = fmt.Sprintf("%s%s", hostname, imageURL)
+					}
 				}
-				imageURLString = imageURL.String()
 
-				if strings.HasPrefix(imageURLString, "//") {
-					imageURLString = "http:" + imageURLString
+				imageURL = strings.TrimPrefix(imageURL, "//")
+
+				if !strings.HasPrefix(imageURL, "http://") && !strings.HasPrefix(imageURL, "https://") {
+					// add scheme
+					imageURL = "http://" + imageURL
 				}
 
-				if hasImageExtention(imageURLString) {
-					urls = append(urls, imageURLString)
+				// check for image extention
+				if hasImageExtention(imageURL) {
+					urls = append(urls, imageURL)
 				}
 			}
 		}
