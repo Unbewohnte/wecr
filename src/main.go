@@ -35,13 +35,15 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
+const version = "v0.1.1"
+
 const (
 	defaultConfigFile string = "conf.json"
 	defaultOutputFile string = "output.json"
 )
 
 var (
-	version = flag.Bool(
+	printVersion = flag.Bool(
 		"version", false,
 		"Print version and exit",
 	)
@@ -77,9 +79,10 @@ func init() {
 	// parse and process flags
 	flag.Parse()
 
-	if *version {
+	if *printVersion {
 		fmt.Printf(
-			"Wecr - crawl the web for data\n(c) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)\n\n",
+			"Wecr %s - crawl the web for data\n(c) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)\n",
+			version,
 		)
 		os.Exit(0)
 	}
