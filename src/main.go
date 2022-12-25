@@ -79,7 +79,7 @@ func init() {
 
 	if *version {
 		fmt.Printf(
-			"Webcrawl - crawl the web for data\n(c) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)\n\n",
+			"Wecr - crawl the web for data\n(c) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)\n\n",
 		)
 		os.Exit(0)
 	}
