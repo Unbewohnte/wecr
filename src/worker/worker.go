@@ -60,48 +60,6 @@ func NewWorker(jobs chan web.Job, results chan web.Result, conf WorkerConf, visi
 	}
 }
 
-func (w *Worker) outputImages(baseURL *url.URL, imageLinks []string) {
-	var alreadyProcessedImgUrls []string
-	for count, imageLink := range imageLinks {
-		// check if this URL has been processed already
-		var skipImage bool = false
-		for _, processedURL := range alreadyProcessedImgUrls {
-			if imageLink == processedURL {
-				skipImage = true
-				break
-			}
-		}
-		if skipImage {
-			skipImage = false
-			continue
-		} else {
-			alreadyProcessedImgUrls = append(alreadyProcessedImgUrls, imageLink)
-		}
-
-		var imageName string = fmt.Sprintf("%s_%d_%s", baseURL.Host, count, path.Base(imageLink))
-
-		response, err := http.Get(imageLink)
-		if err != nil {
-			logger.Error("Failed to get image %s", imageLink)
-			continue
-		}
-
-		imageFile, err := os.Create(filepath.Join(w.Conf.Save.OutputDir, imageName))
-		if err != nil {
-			logger.Error("Failed to create image file \"%s\": %s", imageName, err)
-			continue
-		}
-
-		_, _ = io.Copy(imageFile, response.Body)
-
-		response.Body.Close()
-		imageFile.Close()
-
-		logger.Info("Outputted \"%s\"", imageName)
-		w.stats.MatchesFound++
-	}
-}
-
 func (w *Worker) savePage(baseURL *url.URL, pageData []byte) {
 	if w.Conf.Save.SavePages && w.Conf.Save.OutputDir != "" {
 		var pageName string = fmt.Sprintf("%s_%s.html", baseURL.Host, path.Base(baseURL.String()))
@@ -227,7 +185,45 @@ func (w *Worker) Work() {
 			// find image URLs, output images to the file while not saving already outputted ones
 			imageLinks := web.FindPageImages(pageData, parsedURL.Host)
 
-			w.outputImages(parsedURL, imageLinks)
+			var alreadyProcessedImgUrls []string
+			for count, imageLink := range imageLinks {
+				// check if this URL has been processed already
+				var skipImage bool = false
+				for _, processedURL := range alreadyProcessedImgUrls {
+					if imageLink == processedURL {
+						skipImage = true
+						break
+					}
+				}
+				if skipImage {
+					skipImage = false
+					continue
+				} else {
+					alreadyProcessedImgUrls = append(alreadyProcessedImgUrls, imageLink)
+				}
+
+				var imageName string = fmt.Sprintf("%s_%d_%s", parsedURL.Host, count, path.Base(imageLink))
+
+				response, err := http.Get(imageLink)
+				if err != nil {
+					logger.Error("Failed to get image %s", imageLink)
+					continue
+				}
+
+				imageFile, err := os.Create(filepath.Join(w.Conf.Save.OutputDir, imageName))
+				if err != nil {
+					logger.Error("Failed to create image file \"%s\": %s", imageName, err)
+					continue
+				}
+
+				_, _ = io.Copy(imageFile, response.Body)
+
+				response.Body.Close()
+				imageFile.Close()
+
+				logger.Info("Outputted \"%s\"", imageName)
+				w.stats.MatchesFound++
+			}
 
 			if len(imageLinks) > 0 {
 				savePage = true

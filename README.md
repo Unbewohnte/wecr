@@ -10,13 +10,13 @@ The flow of work fully depends on the configuration file. By default `conf.json`
 
 The configuration is split into different branches like `requests` (how requests are made, ie: request timeout, wait time, user agent), `logging` (use logs, output to a file), `save` (output file|directory, save pages or not) or `search` (use regexp, query string) each of which contain tweakable parameters. There are global ones as well such as `workers` (working threads that make requests in parallel) and `depth` (literally, how deep the recursive search should go). The names are simple and self-explanatory so no attribute-by-attribute explanation needed for most of them.
 
-The parsing starts from `initial_pages` and goes deeper while ignoring the pages on domains that are in `blacklisted_domains`. If all initial pages are happen to be blacklisted - the program will end.
+The parsing starts from `initial_pages` and goes deeper while ignoring the pages on domains that are in `blacklisted_domains` or are NOT in `allowed_domains`. If all initial pages are happen to be on blacklisted domains or are not in the allowed list - the program will get stuck.
 
 ### Search query
 
 if `is_regexp` is `false`, then `query` is the text to be searched for, but there are some special values:
 
-- `links` - tells `webscrape` to search for all links there are on the page
+- `links` - tells `wecr` to search for all links there are on the page
 - `images` - find all image links and output to the `output_dir` (**IMPORTANT**: set `wait_timeout_ms` to `0` so the images load fully)
 
 When `is_regexp` is enabled, the `query` is treated as a regexp string and pages will be scanned for matches that satisfy it.
