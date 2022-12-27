@@ -35,7 +35,7 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.1.1"
+const version = "v0.1.2"
 
 const (
 	defaultConfigFile string = "conf.json"
@@ -157,10 +157,10 @@ func main() {
 
 	// sanitize and correct inputs
 	if len(conf.InitialPages) == 0 {
-		logger.Warning("No initial page URLs have been set")
+		logger.Error("No initial page URLs have been set")
 		return
 	} else if len(conf.InitialPages) != 0 && conf.InitialPages[0] == "" {
-		logger.Warning("No initial page URLs have been set")
+		logger.Error("No initial page URLs have been set")
 		return
 	}
 
@@ -171,7 +171,17 @@ func main() {
 			continue
 		}
 
-		conf.BlacklistedDomains[index] = parsedURL.Host
+		conf.BlacklistedDomains[index] = parsedURL.Hostname()
+	}
+
+	for index, allowedDomain := range conf.AllowedDomains {
+		parsedURL, err := url.Parse(allowedDomain)
+		if err != nil {
+			logger.Warning("Failed to parse allowed %s: %s", allowedDomain, err)
+			continue
+		}
+
+		conf.AllowedDomains[index] = parsedURL.Hostname()
 	}
 
 	if conf.Depth <= 0 {

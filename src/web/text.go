@@ -21,13 +21,14 @@ package web
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"regexp"
 	"strings"
 
 	"golang.org/x/net/html"
 )
 
-func FindPageLinks(pageBody []byte) []string {
+func FindPageLinks(pageBody []byte, hostname string) []string {
 	var urls []string
 
 	tokenizer := html.NewTokenizer(bytes.NewReader(pageBody))
@@ -51,9 +52,27 @@ func FindPageLinks(pageBody []byte) []string {
 					continue
 				}
 
-				if strings.HasPrefix(attribute.Val, "http") {
-					urls = append(urls, attribute.Val)
+				var link string = attribute.Val
+
+				if !strings.Contains(link, hostname) {
+					// add hostname
+					if strings.HasPrefix(link, "/") && strings.HasSuffix(hostname, "/") {
+						link = fmt.Sprintf("%s%s", hostname, link[1:])
+					} else if !strings.HasPrefix(link, "/") && !strings.HasSuffix(hostname, "/") {
+						link = fmt.Sprintf("%s/%s", hostname, link)
+					} else {
+						link = fmt.Sprintf("%s%s", hostname, link)
+					}
 				}
+
+				link = strings.TrimPrefix(link, "//")
+
+				if !strings.HasPrefix(link, "http://") && !strings.HasPrefix(link, "https://") {
+					// add scheme
+					link = "http://" + link
+				}
+
+				urls = append(urls, link)
 			}
 		}
 	}

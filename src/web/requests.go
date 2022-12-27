@@ -31,9 +31,7 @@ func GetPage(url string, userAgent string, timeOutMs uint64) ([]byte, error) {
 	}
 	req.Header.Set("User-Agent", userAgent)
 
-	if timeOutMs != 0 {
-		http.DefaultClient.Timeout = time.Duration(timeOutMs * uint64(time.Millisecond))
-	}
+	http.DefaultClient.Timeout = time.Duration(timeOutMs * uint64(time.Millisecond))
 	response, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err

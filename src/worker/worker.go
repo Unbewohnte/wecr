@@ -37,6 +37,7 @@ type WorkerConf struct {
 	Requests           config.Requests
 	Save               config.Save
 	BlacklistedDomains []string
+	AllowedDomains     []string
 }
 
 type Worker struct {
@@ -127,20 +128,34 @@ func (w *Worker) Work() {
 			return
 		}
 
-		// see if the domain is not blacklisted
+		// see if the domain is allowed and is not blacklisted
 		var skip bool = false
 		parsedURL, err := url.Parse(job.URL)
 		if err != nil {
 			logger.Error("Failed to parse URL \"%s\" to get hostname: %s", job.URL, err)
 			continue
 		}
-		for _, blacklistedDomain := range w.Conf.BlacklistedDomains {
-			if parsedURL.Hostname() == blacklistedDomain {
+
+		for _, allowedDomain := range w.Conf.AllowedDomains {
+			if parsedURL.Hostname() != allowedDomain {
 				skip = true
-				logger.Info("Skipping blacklisted %s", job.URL)
+				logger.Info("Skipped non-allowed %s", job.URL)
 				break
 			}
 		}
+
+		for _, blacklistedDomain := range w.Conf.BlacklistedDomains {
+			if skip {
+				break
+			}
+
+			if parsedURL.Hostname() == blacklistedDomain {
+				skip = true
+				logger.Info("Skipped blacklisted %s", job.URL)
+				break
+			}
+		}
+
 		if skip {
 			continue
 		}
@@ -174,7 +189,7 @@ func (w *Worker) Work() {
 		}
 
 		// find links
-		pageLinks := web.FindPageLinks(pageData)
+		pageLinks := web.FindPageLinks(pageData, parsedURL.Host)
 
 		go func() {
 			if job.Depth > 1 {

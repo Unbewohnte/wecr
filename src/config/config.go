@@ -57,6 +57,7 @@ type Conf struct {
 	Depth              uint     `json:"depth"`
 	Workers            uint     `json:"workers"`
 	InitialPages       []string `json:"initial_pages"`
+	AllowedDomains     []string `json:"allowed_domains"`
 	BlacklistedDomains []string `json:"blacklisted_domains"`
 	Save               Save     `json:"save"`
 	Logging            Logging  `json:"logging"`
@@ -81,6 +82,7 @@ func Default() *Conf {
 		InitialPages:       []string{""},
 		Depth:              5,
 		Workers:            20,
+		AllowedDomains:     []string{""},
 		BlacklistedDomains: []string{""},
 		Logging: Logging{
 			OutputLogs: true,
