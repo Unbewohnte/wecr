@@ -24,17 +24,20 @@ import (
 	"unbewohnte/wecr/web"
 )
 
+// Already visited URLs
 type visited struct {
 	URLs []string
 	Lock sync.Mutex
 }
 
+// Whole worker pool's statistics
 type Statistics struct {
 	PagesVisited uint64
 	MatchesFound uint64
 	StartTime    time.Time
 }
 
+// Web-Worker pool
 type Pool struct {
 	workersCount uint
 	workers      []*Worker
@@ -42,6 +45,7 @@ type Pool struct {
 	Stats        Statistics
 }
 
+// Create a new worker pool
 func NewWorkerPool(jobs chan web.Job, results chan web.Result, workerCount uint, workerConf WorkerConf) *Pool {
 	var newPool Pool = Pool{
 		workersCount: workerCount,
@@ -66,6 +70,7 @@ func NewWorkerPool(jobs chan web.Job, results chan web.Result, workerCount uint,
 	return &newPool
 }
 
+// Notify all workers in pool to start scraping
 func (p *Pool) Work() {
 	p.Stats.StartTime = time.Now()
 
@@ -75,6 +80,7 @@ func (p *Pool) Work() {
 	}
 }
 
+// Notify all workers in pool to stop scraping
 func (p *Pool) Stop() {
 	for _, worker := range p.workers {
 		worker.Stopped = true

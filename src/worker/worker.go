@@ -33,6 +33,7 @@ import (
 	"unbewohnte/wecr/web"
 )
 
+// Worker configuration
 type WorkerConf struct {
 	Requests           config.Requests
 	Save               config.Save
@@ -40,6 +41,7 @@ type WorkerConf struct {
 	AllowedDomains     []string
 }
 
+// Web worker
 type Worker struct {
 	Jobs    chan web.Job
 	Results chan web.Result
@@ -49,6 +51,7 @@ type Worker struct {
 	Stopped bool
 }
 
+// Create a new worker
 func NewWorker(jobs chan web.Job, results chan web.Result, conf WorkerConf, visited *visited, stats *Statistics) Worker {
 	return Worker{
 		Jobs:    jobs,
@@ -60,6 +63,7 @@ func NewWorker(jobs chan web.Job, results chan web.Result, conf WorkerConf, visi
 	}
 }
 
+// Save page to the disk with a corresponding name
 func (w *Worker) savePage(baseURL *url.URL, pageData []byte) {
 	if w.Conf.Save.SavePages && w.Conf.Save.OutputDir != "" {
 		var pageName string = fmt.Sprintf("%s_%s.html", baseURL.Host, path.Base(baseURL.String()))
@@ -71,9 +75,12 @@ func (w *Worker) savePage(baseURL *url.URL, pageData []byte) {
 		}
 
 		pageFile.Close()
+
+		logger.Info("Saved \"%s\"", pageName)
 	}
 }
 
+// Launch scraping process on this worker
 func (w *Worker) Work() {
 	if w.Stopped {
 		return
@@ -88,14 +95,14 @@ func (w *Worker) Work() {
 
 		// see if the domain is allowed and is not blacklisted
 		var skip bool = false
-		parsedURL, err := url.Parse(job.URL)
+		pageURL, err := url.Parse(job.URL)
 		if err != nil {
 			logger.Error("Failed to parse URL \"%s\" to get hostname: %s", job.URL, err)
 			continue
 		}
 
 		for _, allowedDomain := range w.Conf.AllowedDomains {
-			if parsedURL.Hostname() != allowedDomain {
+			if pageURL.Hostname() != allowedDomain {
 				skip = true
 				logger.Info("Skipped non-allowed %s", job.URL)
 				break
@@ -107,7 +114,7 @@ func (w *Worker) Work() {
 				break
 			}
 
-			if parsedURL.Hostname() == blacklistedDomain {
+			if pageURL.Hostname() == blacklistedDomain {
 				skip = true
 				logger.Info("Skipped blacklisted %s", job.URL)
 				break
@@ -129,6 +136,7 @@ func (w *Worker) Work() {
 				break
 			}
 		}
+
 		if skip {
 			continue
 		}
@@ -147,7 +155,7 @@ func (w *Worker) Work() {
 		}
 
 		// find links
-		pageLinks := web.FindPageLinks(pageData, parsedURL.Host)
+		pageLinks := web.FindPageLinks(pageData, pageURL)
 
 		go func() {
 			if job.Depth > 1 {
@@ -178,31 +186,33 @@ func (w *Worker) Work() {
 					Search:  job.Search,
 					Data:    pageLinks,
 				}
+				w.stats.MatchesFound += uint64(len(pageLinks))
 				savePage = true
 			}
 
 		case config.QueryImages:
 			// find image URLs, output images to the file while not saving already outputted ones
-			imageLinks := web.FindPageImages(pageData, parsedURL.Host)
+			imageLinks := web.FindPageImages(pageData, pageURL)
 
 			var alreadyProcessedImgUrls []string
 			for count, imageLink := range imageLinks {
 				// check if this URL has been processed already
 				var skipImage bool = false
+
 				for _, processedURL := range alreadyProcessedImgUrls {
 					if imageLink == processedURL {
 						skipImage = true
 						break
 					}
 				}
+
 				if skipImage {
 					skipImage = false
 					continue
-				} else {
-					alreadyProcessedImgUrls = append(alreadyProcessedImgUrls, imageLink)
 				}
+				alreadyProcessedImgUrls = append(alreadyProcessedImgUrls, imageLink)
 
-				var imageName string = fmt.Sprintf("%s_%d_%s", parsedURL.Host, count, path.Base(imageLink))
+				var imageName string = fmt.Sprintf("%s_%d_%s", pageURL.Host, count, path.Base(imageLink))
 
 				response, err := http.Get(imageLink)
 				if err != nil {
@@ -266,14 +276,14 @@ func (w *Worker) Work() {
 					savePage = true
 				}
 			}
-
-			// save page
-			if savePage {
-				w.savePage(parsedURL, pageData)
-			}
-
-			// sleep before the next request
-			time.Sleep(time.Duration(w.Conf.Requests.RequestPauseMs * uint64(time.Millisecond)))
 		}
+
+		// save page
+		if savePage {
+			w.savePage(pageURL, pageData)
+		}
+
+		// sleep before the next request
+		time.Sleep(time.Duration(w.Conf.Requests.RequestPauseMs * uint64(time.Millisecond)))
 	}
 }

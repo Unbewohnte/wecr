@@ -24,6 +24,7 @@ import (
 	"time"
 )
 
+// Get page data coming from url with optional user agent and timeout
 func GetPage(url string, userAgent string, timeOutMs uint64) ([]byte, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

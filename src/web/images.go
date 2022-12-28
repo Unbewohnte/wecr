@@ -20,7 +20,7 @@ package web
 
 import (
 	"bytes"
-	"fmt"
+	"net/url"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -31,9 +31,15 @@ func hasImageExtention(url string) bool {
 		".jpeg",
 		".jpg",
 		".jpe",
+		".jfif",
 		".png",
 		".ppm",
 		".svg",
+		".gif",
+		".tiff",
+		".bmp",
+		".webp",
+		".ico",
 	}
 
 	for _, extention := range extentions {
@@ -46,7 +52,7 @@ func hasImageExtention(url string) bool {
 }
 
 // Tries to find images' URLs on the page
-func FindPageImages(pageBody []byte, hostname string) []string {
+func FindPageImages(pageBody []byte, from *url.URL) []string {
 	var urls []string
 
 	tokenizer := html.NewTokenizer(bytes.NewReader(pageBody))
@@ -69,29 +75,21 @@ func FindPageImages(pageBody []byte, hostname string) []string {
 					continue
 				}
 
-				var imageURL string = attribute.Val
+				imageURL, err := url.Parse(attribute.Val)
+				if err != nil {
+					break
+				}
 
-				if !strings.Contains(imageURL, hostname) {
-					// add hostname
-					if strings.HasPrefix(imageURL, "/") && strings.HasSuffix(hostname, "/") {
-						imageURL = fmt.Sprintf("%s%s", hostname, imageURL[1:])
-					} else if !strings.HasPrefix(imageURL, "/") && !strings.HasSuffix(hostname, "/") {
-						imageURL = fmt.Sprintf("%s/%s", hostname, imageURL)
-					} else {
-						imageURL = fmt.Sprintf("%s%s", hostname, imageURL)
+				imageURLString := ResolveLink(imageURL, from.Host)
+
+				if attribute.Key == "src" {
+					// <img> tag -> don't check
+					urls = append(urls, imageURLString)
+				} else {
+					// <a> tag -> check for image extention
+					if hasImageExtention(imageURLString) {
+						urls = append(urls, imageURLString)
 					}
-				}
-
-				imageURL = strings.TrimPrefix(imageURL, "//")
-
-				if !strings.HasPrefix(imageURL, "http://") && !strings.HasPrefix(imageURL, "https://") {
-					// add scheme
-					imageURL = "http://" + imageURL
-				}
-
-				// check for image extention
-				if hasImageExtention(imageURL) {
-					urls = append(urls, imageURL)
 				}
 			}
 		}

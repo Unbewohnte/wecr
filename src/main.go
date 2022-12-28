@@ -35,7 +35,7 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.1.2"
+const version = "v0.1.3"
 
 const (
 	defaultConfigFile string = "conf.json"
@@ -299,6 +299,7 @@ func main() {
 			break
 		}
 
+		// each entry in output file is a self-standing JSON object
 		entryBytes, err := json.MarshalIndent(result, "", "  ")
 		if err != nil {
 			continue

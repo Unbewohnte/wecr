@@ -20,6 +20,7 @@ package web
 
 import "unbewohnte/wecr/config"
 
+// Job to pass around workers
 type Job struct {
 	URL    string
 	Search config.Search

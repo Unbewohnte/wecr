@@ -21,14 +21,33 @@ package web
 import (
 	"bufio"
 	"bytes"
-	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 
 	"golang.org/x/net/html"
 )
 
-func FindPageLinks(pageBody []byte, hostname string) []string {
+// Fix relative link and construct an absolute one. Does nothing if the URL already looks alright
+func ResolveLink(url *url.URL, fromHost string) string {
+	if !url.IsAbs() {
+		if url.Scheme == "" {
+			// add scheme
+			url.Scheme = "http"
+		}
+
+		if url.Host == "" {
+			// add host
+			url.Host = fromHost
+
+		}
+	}
+
+	return url.String()
+}
+
+// Find all links on page that are specified in <a> tag
+func FindPageLinks(pageBody []byte, from *url.URL) []string {
 	var urls []string
 
 	tokenizer := html.NewTokenizer(bytes.NewReader(pageBody))
@@ -52,27 +71,12 @@ func FindPageLinks(pageBody []byte, hostname string) []string {
 					continue
 				}
 
-				var link string = attribute.Val
-
-				if !strings.Contains(link, hostname) {
-					// add hostname
-					if strings.HasPrefix(link, "/") && strings.HasSuffix(hostname, "/") {
-						link = fmt.Sprintf("%s%s", hostname, link[1:])
-					} else if !strings.HasPrefix(link, "/") && !strings.HasSuffix(hostname, "/") {
-						link = fmt.Sprintf("%s/%s", hostname, link)
-					} else {
-						link = fmt.Sprintf("%s%s", hostname, link)
-					}
+				link, err := url.Parse(attribute.Val)
+				if err != nil {
+					break
 				}
 
-				link = strings.TrimPrefix(link, "//")
-
-				if !strings.HasPrefix(link, "http://") && !strings.HasPrefix(link, "https://") {
-					// add scheme
-					link = "http://" + link
-				}
-
-				urls = append(urls, link)
+				urls = append(urls, ResolveLink(link, from.Host))
 			}
 		}
 	}

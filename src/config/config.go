@@ -51,6 +51,7 @@ type Logging struct {
 	LogsFile   string `json:"logs_file"`
 }
 
+// Configuration file structure
 type Conf struct {
 	Search             Search   `json:"search"`
 	Requests           Requests `json:"requests"`
@@ -63,6 +64,7 @@ type Conf struct {
 	Logging            Logging  `json:"logging"`
 }
 
+// Default configuration file structure
 func Default() *Conf {
 	return &Conf{
 		Search: Search{
@@ -91,6 +93,7 @@ func Default() *Conf {
 	}
 }
 
+// Write current configuration to w
 func (c *Conf) WriteTo(w io.Writer) error {
 	jsonData, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
@@ -105,6 +108,7 @@ func (c *Conf) WriteTo(w io.Writer) error {
 	return nil
 }
 
+// Read configuration from r
 func (c *Conf) ReadFrom(r io.Reader) error {
 	jsonData, err := io.ReadAll(r)
 	if err != nil {
@@ -119,6 +123,7 @@ func (c *Conf) ReadFrom(r io.Reader) error {
 	return nil
 }
 
+// Creates configuration file at path
 func CreateConfigFile(conf Conf, path string) error {
 	confFile, err := os.Create(path)
 	if err != nil {
@@ -134,6 +139,7 @@ func CreateConfigFile(conf Conf, path string) error {
 	return nil
 }
 
+// Tries to open configuration file at path. If it fails - returns default configuration
 func OpenConfigFile(path string) (*Conf, error) {
 	confFile, err := os.Open(path)
 	if err != nil {

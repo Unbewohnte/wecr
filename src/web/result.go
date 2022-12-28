@@ -20,6 +20,7 @@ package web
 
 import "unbewohnte/wecr/config"
 
+// Result of page parsing
 type Result struct {
 	PageURL string
 	Search  config.Search
