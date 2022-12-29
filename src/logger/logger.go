@@ -50,6 +50,11 @@ func SetOutput(writer io.Writer) {
 	errorLog.SetOutput(writer)
 }
 
+// Get current logger's output writer
+func GetOutput() io.Writer {
+	return infoLog.Writer()
+}
+
 // Log information
 func Info(format string, a ...interface{}) {
 	infoLog.Printf(format, a...)

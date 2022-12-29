@@ -34,6 +34,7 @@ type visited struct {
 type Statistics struct {
 	PagesVisited uint64
 	MatchesFound uint64
+	PagesSaved   uint64
 	StartTime    time.Time
 }
 

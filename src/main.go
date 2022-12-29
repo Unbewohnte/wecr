@@ -35,7 +35,7 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.1.3"
+const version = "v0.1.4"
 
 const (
 	defaultConfigFile string = "conf.json"
@@ -86,6 +86,17 @@ func init() {
 		)
 		os.Exit(0)
 	}
+
+	// print logo
+	logger.GetOutput().Write([]byte(
+		`██╗    ██╗███████╗ ██████╗██████╗ 
+██║    ██║██╔════╝██╔════╝██╔══██╗
+██║ █╗ ██║█████╗  ██║     ██████╔╝
+██║███╗██║██╔══╝  ██║     ██╔══██╗
+╚███╔███╔╝███████╗╚██████╗██║  ██║
+ ╚══╝╚══╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝`),
+	)
+	logger.GetOutput().Write([]byte(version + "\n\n"))
 
 	// work out working directory path
 	if *wDir != "" {
@@ -151,7 +162,7 @@ func main() {
 		}
 	} else {
 		// no logging needed
-		logger.Info("No logs will be outputted")
+		logger.Info("No further logs will be outputted")
 		logger.SetOutput(nil)
 	}
 
@@ -167,21 +178,33 @@ func main() {
 	for index, blacklistedDomain := range conf.BlacklistedDomains {
 		parsedURL, err := url.Parse(blacklistedDomain)
 		if err != nil {
-			logger.Warning("Failed to parse blacklisted %s: %s", blacklistedDomain, err)
+			logger.Warning("Failed to parse blacklisted \"%s\": %s", blacklistedDomain, err)
 			continue
 		}
 
-		conf.BlacklistedDomains[index] = parsedURL.Hostname()
+		if parsedURL.Scheme == "" {
+			// parsing is invalid, as stdlib says
+			logger.Warning("Failed to parse blacklisted \"%s\": no scheme specified", blacklistedDomain)
+			continue
+		}
+
+		conf.BlacklistedDomains[index] = parsedURL.Host
 	}
 
 	for index, allowedDomain := range conf.AllowedDomains {
 		parsedURL, err := url.Parse(allowedDomain)
 		if err != nil {
-			logger.Warning("Failed to parse allowed %s: %s", allowedDomain, err)
+			logger.Warning("Failed to parse allowed \"%s\": %s", allowedDomain, err)
 			continue
 		}
 
-		conf.AllowedDomains[index] = parsedURL.Hostname()
+		if parsedURL.Scheme == "" {
+			// parsing is invalid, as stdlib says
+			logger.Warning("Failed to parse allowed \"%s\": no scheme specified", allowedDomain)
+			continue
+		}
+
+		conf.AllowedDomains[index] = parsedURL.Host
 	}
 
 	if conf.Depth <= 0 {
@@ -252,6 +275,7 @@ func main() {
 		Requests:           conf.Requests,
 		Save:               conf.Save,
 		BlacklistedDomains: conf.BlacklistedDomains,
+		AllowedDomains:     conf.AllowedDomains,
 	})
 	logger.Info("Created a worker pool with %d workers", conf.Workers)
 
@@ -282,9 +306,10 @@ func main() {
 
 				timeSince := time.Since(workerPool.Stats.StartTime).Round(time.Second)
 
-				fmt.Fprintf(os.Stdout, "\r[%s] %d pages; %d matches (%d pages/sec)",
+				fmt.Fprintf(os.Stdout, "\r[%s] %d pages visited; %d saved; %d matches (%d pages/sec)",
 					timeSince.String(),
 					workerPool.Stats.PagesVisited,
+					workerPool.Stats.PagesSaved,
 					workerPool.Stats.MatchesFound,
 					workerPool.Stats.PagesVisited/uint64(timeSince.Seconds()),
 				)

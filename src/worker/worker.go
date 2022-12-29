@@ -93,7 +93,6 @@ func (w *Worker) Work() {
 			return
 		}
 
-		// see if the domain is allowed and is not blacklisted
 		var skip bool = false
 		pageURL, err := url.Parse(job.URL)
 		if err != nil {
@@ -101,28 +100,32 @@ func (w *Worker) Work() {
 			continue
 		}
 
-		for _, allowedDomain := range w.Conf.AllowedDomains {
-			if pageURL.Hostname() != allowedDomain {
-				skip = true
-				logger.Info("Skipped non-allowed %s", job.URL)
-				break
+		// see if the domain is allowed and is not blacklisted
+		if len(w.Conf.AllowedDomains) > 0 {
+			skip = true
+			for _, allowedDomain := range w.Conf.AllowedDomains {
+				if pageURL.Host == allowedDomain {
+					skip = false
+					break
+				}
 			}
-		}
-
-		for _, blacklistedDomain := range w.Conf.BlacklistedDomains {
 			if skip {
-				break
-			}
-
-			if pageURL.Hostname() == blacklistedDomain {
-				skip = true
-				logger.Info("Skipped blacklisted %s", job.URL)
-				break
+				logger.Info("Skipped non-allowed %s", job.URL)
+				continue
 			}
 		}
 
-		if skip {
-			continue
+		if len(w.Conf.BlacklistedDomains) > 0 {
+			for _, blacklistedDomain := range w.Conf.BlacklistedDomains {
+				if pageURL.Host == blacklistedDomain {
+					skip = true
+					logger.Info("Skipped blacklisted %s", job.URL)
+					break
+				}
+			}
+			if skip {
+				continue
+			}
 		}
 
 		// check if it is the first occurence
@@ -281,6 +284,7 @@ func (w *Worker) Work() {
 		// save page
 		if savePage {
 			w.savePage(pageURL, pageData)
+			w.stats.PagesSaved++
 		}
 
 		// sleep before the next request

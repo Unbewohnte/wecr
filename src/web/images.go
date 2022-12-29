@@ -82,7 +82,7 @@ func FindPageImages(pageBody []byte, from *url.URL) []string {
 
 				imageURLString := ResolveLink(imageURL, from.Host)
 
-				if attribute.Key == "src" {
+				if token.Data == "img" {
 					// <img> tag -> don't check
 					urls = append(urls, imageURLString)
 				} else {
