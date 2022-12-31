@@ -28,6 +28,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"time"
 	"unbewohnte/wecr/config"
 	"unbewohnte/wecr/logger"
@@ -175,7 +176,12 @@ func main() {
 		return
 	}
 
-	for index, blacklistedDomain := range conf.BlacklistedDomains {
+	var sanitizedBlacklistedDomains []string
+	for _, blacklistedDomain := range conf.BlacklistedDomains {
+		if strings.TrimSpace(blacklistedDomain) == "" {
+			continue
+		}
+
 		parsedURL, err := url.Parse(blacklistedDomain)
 		if err != nil {
 			logger.Warning("Failed to parse blacklisted \"%s\": %s", blacklistedDomain, err)
@@ -188,10 +194,16 @@ func main() {
 			continue
 		}
 
-		conf.BlacklistedDomains[index] = parsedURL.Host
+		sanitizedBlacklistedDomains = append(sanitizedBlacklistedDomains, parsedURL.Host)
 	}
+	conf.BlacklistedDomains = sanitizedBlacklistedDomains
 
-	for index, allowedDomain := range conf.AllowedDomains {
+	var sanitizedAllowedDomains []string
+	for _, allowedDomain := range conf.AllowedDomains {
+		if strings.TrimSpace(allowedDomain) == "" {
+			continue
+		}
+
 		parsedURL, err := url.Parse(allowedDomain)
 		if err != nil {
 			logger.Warning("Failed to parse allowed \"%s\": %s", allowedDomain, err)
@@ -204,8 +216,9 @@ func main() {
 			continue
 		}
 
-		conf.AllowedDomains[index] = parsedURL.Host
+		sanitizedAllowedDomains = append(sanitizedAllowedDomains, parsedURL.Host)
 	}
+	conf.AllowedDomains = sanitizedAllowedDomains
 
 	if conf.Depth <= 0 {
 		conf.Depth = 1

@@ -93,13 +93,13 @@ func (w *Worker) Work() {
 			return
 		}
 
-		var skip bool = false
 		pageURL, err := url.Parse(job.URL)
 		if err != nil {
 			logger.Error("Failed to parse URL \"%s\" to get hostname: %s", job.URL, err)
 			continue
 		}
 
+		var skip bool = false
 		// see if the domain is allowed and is not blacklisted
 		if len(w.Conf.AllowedDomains) > 0 {
 			skip = true
