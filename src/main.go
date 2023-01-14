@@ -36,7 +36,7 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.2.0"
+const version = "v0.2.1"
 
 const (
 	defaultConfigFile string = "conf.json"
@@ -275,14 +275,16 @@ func main() {
 	}
 
 	switch conf.Search.Query {
-	case config.QueryLinks:
-		logger.Info("Looking for links")
+	case config.QueryEmail:
+		logger.Info("Looking for emails")
 	case config.QueryImages:
 		logger.Info("Looking for images (%+s)", web.ImageExtentions)
 	case config.QueryVideos:
 		logger.Info("Looking for videos (%+s)", web.VideoExtentions)
 	case config.QueryAudio:
 		logger.Info("Looking for audio (%+s)", web.AudioExtentions)
+	case config.QueryEverything:
+		logger.Info("Looking for emails, images, videos and audio (%+s - %+s - %+s)", web.ImageExtentions, web.VideoExtentions, web.AudioExtentions)
 	default:
 		if conf.Search.IsRegexp {
 			logger.Info("Looking for RegExp matches (%s)", conf.Search.Query)
@@ -359,7 +361,7 @@ func main() {
 		}()
 	}
 
-	// get results and write them to the output file
+	// get text results and write them to the output file (files are handled by each worker separately)
 	for {
 		result, ok := <-results
 		if !ok {

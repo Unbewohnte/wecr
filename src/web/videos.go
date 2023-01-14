@@ -23,7 +23,7 @@ import (
 	"strings"
 )
 
-func hasVideoExtention(url string) bool {
+func HasVideoExtention(url string) bool {
 	for _, extention := range VideoExtentions {
 		if strings.HasSuffix(url, extention) {
 			return true
@@ -70,7 +70,7 @@ func FindPageVideos(pageBody []byte, from *url.URL) []string {
 		}
 
 		linkResolved := ResolveLink(link, from.Host)
-		if hasVideoExtention(linkResolved) {
+		if HasVideoExtention(linkResolved) {
 			urls = append(urls, linkResolved)
 		}
 	}
@@ -108,7 +108,7 @@ func FindPageVideos(pageBody []byte, from *url.URL) []string {
 		}
 
 		linkResolved := ResolveLink(link, from.Host)
-		if hasVideoExtention(linkResolved) {
+		if HasVideoExtention(linkResolved) {
 			urls = append(urls, linkResolved)
 		}
 	}

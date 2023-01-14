@@ -61,7 +61,7 @@ func NewWorker(jobs chan web.Job, results chan web.Result, conf WorkerConf, visi
 	}
 }
 
-func (w *Worker) saveContent(contenType string, links []string, pageURL *url.URL) {
+func (w *Worker) saveContent(links []string, pageURL *url.URL) {
 	var alreadyProcessedUrls []string
 	for count, link := range links {
 		// check if this URL has been processed already
@@ -83,14 +83,13 @@ func (w *Worker) saveContent(contenType string, links []string, pageURL *url.URL
 		var fileName string = fmt.Sprintf("%s_%d_%s", pageURL.Host, count, path.Base(link))
 
 		var filePath string
-		switch contenType {
-		case config.QueryImages:
+		if web.HasImageExtention(link) {
 			filePath = filepath.Join(w.Conf.Save.OutputDir, config.SaveImagesDir, fileName)
-		case config.QueryVideos:
+		} else if web.HasVideoExtention(link) {
 			filePath = filepath.Join(w.Conf.Save.OutputDir, config.SaveVideosDir, fileName)
-		case config.QueryAudio:
+		} else if web.HasAudioExtention(link) {
 			filePath = filepath.Join(w.Conf.Save.OutputDir, config.SaveAudioDir, fileName)
-		default:
+		} else {
 			filePath = filepath.Join(w.Conf.Save.OutputDir, fileName)
 		}
 
@@ -229,22 +228,10 @@ func (w *Worker) Work() {
 		var savePage bool = false
 
 		switch job.Search.Query {
-		case config.QueryLinks:
-			// simply output links
-			if len(pageLinks) > 0 {
-				w.Results <- web.Result{
-					PageURL: job.URL,
-					Search:  job.Search,
-					Data:    pageLinks,
-				}
-				w.stats.MatchesFound += uint64(len(pageLinks))
-				savePage = true
-			}
-
 		case config.QueryImages:
 			// find image URLs, output images to the file while not saving already outputted ones
 			imageLinks := web.FindPageImages(pageData, pageURL)
-			w.saveContent(config.QueryImages, imageLinks, pageURL)
+			w.saveContent(imageLinks, pageURL)
 			if len(imageLinks) > 0 {
 				savePage = true
 			}
@@ -253,7 +240,7 @@ func (w *Worker) Work() {
 			// search for videos
 			// find video URLs, output videos to the files while not saving already outputted ones
 			videoLinks := web.FindPageVideos(pageData, pageURL)
-			w.saveContent(config.QueryVideos, videoLinks, pageURL)
+			w.saveContent(videoLinks, pageURL)
 			if len(videoLinks) > 0 {
 				savePage = true
 			}
@@ -262,8 +249,47 @@ func (w *Worker) Work() {
 			// search for audio
 			// find audio URLs, output audio to the file while not saving already outputted ones
 			audioLinks := web.FindPageAudio(pageData, pageURL)
-			w.saveContent(config.QueryAudio, audioLinks, pageURL)
+			w.saveContent(audioLinks, pageURL)
 			if len(audioLinks) > 0 {
+				savePage = true
+			}
+
+		case config.QueryEmail:
+			// search for email
+			emailAddresses := web.FindPageEmails(pageData)
+			if len(emailAddresses) > 0 {
+				w.Results <- web.Result{
+					PageURL: job.URL,
+					Search:  job.Search,
+					Data:    emailAddresses,
+				}
+				w.stats.MatchesFound += uint64(len(emailAddresses))
+				savePage = true
+			}
+
+		case config.QueryEverything:
+			// search for everything
+
+			// files
+			var contentLinks []string
+			contentLinks = append(contentLinks, web.FindPageImages(pageData, pageURL)...)
+			contentLinks = append(contentLinks, web.FindPageAudio(pageData, pageURL)...)
+			contentLinks = append(contentLinks, web.FindPageVideos(pageData, pageURL)...)
+			w.saveContent(contentLinks, pageURL)
+
+			// email
+			emailAddresses := web.FindPageEmails(pageData)
+			if len(emailAddresses) > 0 {
+				w.Results <- web.Result{
+					PageURL: job.URL,
+					Search:  job.Search,
+					Data:    emailAddresses,
+				}
+				w.stats.MatchesFound += uint64(len(emailAddresses))
+				savePage = true
+			}
+
+			if len(contentLinks) > 0 || len(emailAddresses) > 0 {
 				savePage = true
 			}
 

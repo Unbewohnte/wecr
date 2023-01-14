@@ -21,6 +21,7 @@ package web
 import (
 	"bufio"
 	"bytes"
+	"net/mail"
 	"net/url"
 	"regexp"
 	"strings"
@@ -31,6 +32,8 @@ var tagHrefRegexp *regexp.Regexp = regexp.MustCompile(`(?i)(href)[\s]*=[\s]*("|'
 
 // matches src="link" or even something along the lines of SrC    =  'link'
 var tagSrcRegexp *regexp.Regexp = regexp.MustCompile(`(?i)(src)[\s]*=[\s]*("|')(.*?)("|')`)
+
+var emailRegexp *regexp.Regexp = regexp.MustCompile(`[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}`)
 
 // Fix relative link and construct an absolute one. Does nothing if the URL already looks alright
 func ResolveLink(url *url.URL, fromHost string) string {
@@ -114,4 +117,34 @@ func IsTextOnPage(text string, ignoreCase bool, pageBody []byte) bool {
 // Tries to find a string matching given regexp in page. Returns an array of found
 func FindPageRegexp(re *regexp.Regexp, pageBody []byte) []string {
 	return re.FindAllString(string(pageBody), -1)
+}
+
+// Extract clear email addresses on the page
+func FindPageEmails(pageBody []byte) []string {
+	var emailAddresses []string
+
+	var skip bool
+	for _, email := range emailRegexp.FindAllString(string(pageBody), -1) {
+		skip = false
+
+		_, err := mail.ParseAddress(email)
+		if err != nil {
+			continue
+		}
+
+		for _, visitedEmail := range emailAddresses {
+			if email == visitedEmail {
+				skip = true
+				break
+			}
+		}
+
+		if skip {
+			continue
+		}
+
+		emailAddresses = append(emailAddresses, email)
+	}
+
+	return emailAddresses
 }

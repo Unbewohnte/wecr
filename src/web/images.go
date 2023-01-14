@@ -23,7 +23,7 @@ import (
 	"strings"
 )
 
-func hasImageExtention(url string) bool {
+func HasImageExtention(url string) bool {
 	for _, extention := range ImageExtentions {
 		if strings.HasSuffix(url, extention) {
 			return true
@@ -70,7 +70,7 @@ func FindPageImages(pageBody []byte, from *url.URL) []string {
 		}
 
 		linkResolved := ResolveLink(link, from.Host)
-		if hasImageExtention(linkResolved) {
+		if HasImageExtention(linkResolved) {
 			urls = append(urls, linkResolved)
 		}
 	}
@@ -108,7 +108,7 @@ func FindPageImages(pageBody []byte, from *url.URL) []string {
 		}
 
 		linkResolved := ResolveLink(link, from.Host)
-		if hasImageExtention(linkResolved) {
+		if HasImageExtention(linkResolved) {
 			urls = append(urls, linkResolved)
 		}
 	}

@@ -82,7 +82,3 @@ var VideoExtentions = []string{
 	".vob",
 	".ogv",
 }
-
-var DocumentExtentions = []string{
-	"",
-}

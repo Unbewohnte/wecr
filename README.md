@@ -16,10 +16,11 @@ The parsing starts from `initial_pages` and goes deeper while ignoring the pages
 
 There are some special `query` values:
 
-- `links` - tells `wecr` to search for all links there are on the page
+- `email` - tells wecr to scrape email addresses and output to `output_file`
 - `images` - find all images on pages and output to the corresponding directory in `output_dir` (**IMPORTANT**: set `content_fetch_timeout_ms` to `0` so the images (and other content below) load fully)
 - `videos` - find and fetch files that look like videos
 - `audio` - find and fetch files that look like audio
+- `everything` - find and fetch images, audio and video
 
 When `is_regexp` is enabled, the `query` is treated as a regexp string and pages will be scanned for matches that satisfy it.
 
@@ -29,10 +30,10 @@ By default, if the query is not something of special values all the matches and 
 
 ## TODO
 
-- **PARSE HTML WITH REGEXP (_EVIL LAUGH_)** - [x]
-- Search for videos - [x]
-- Search for audio - [x]
-- Search for documents - []
+- **PARSE HTML WITH REGEXP (_EVIL LAUGH_)** - Done
+- Search for videos - Done
+- Search for audio - Done
+- Search for documents
 
 ## License
 AGPLv3

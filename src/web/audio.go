@@ -23,7 +23,7 @@ import (
 	"strings"
 )
 
-func hasAudioExtention(url string) bool {
+func HasAudioExtention(url string) bool {
 	for _, extention := range AudioExtentions {
 		if strings.HasSuffix(url, extention) {
 			return true
@@ -70,7 +70,7 @@ func FindPageAudio(pageBody []byte, from *url.URL) []string {
 		}
 
 		linkResolved := ResolveLink(link, from.Host)
-		if hasAudioExtention(linkResolved) {
+		if HasAudioExtention(linkResolved) {
 			urls = append(urls, linkResolved)
 		}
 	}
@@ -108,7 +108,7 @@ func FindPageAudio(pageBody []byte, from *url.URL) []string {
 		}
 
 		linkResolved := ResolveLink(link, from.Host)
-		if hasAudioExtention(linkResolved) {
+		if HasAudioExtention(linkResolved) {
 			urls = append(urls, linkResolved)
 		}
 	}

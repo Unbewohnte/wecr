@@ -25,10 +25,11 @@ import (
 )
 
 const (
-	QueryLinks  string = "links"
-	QueryImages string = "images"
-	QueryVideos string = "videos"
-	QueryAudio  string = "audio"
+	QueryImages     string = "images"
+	QueryVideos     string = "videos"
+	QueryAudio      string = "audio"
+	QueryEmail      string = "email"
+	QueryEverything string = "everything"
 )
 
 const (
@@ -45,7 +46,7 @@ type Search struct {
 
 type Save struct {
 	OutputDir  string `json:"output_dir"`
-	OutputFile string `json:"save_file"`
+	OutputFile string `json:"output_file"`
 	SavePages  bool   `json:"save_pages"`
 }
 
