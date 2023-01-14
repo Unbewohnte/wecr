@@ -1,6 +1,6 @@
 /*
 	Wecr - crawl the web for data
-	Copyright (C) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)
+	Copyright (C) 2022, 2023 Kasyanov Nikolay Alexeyevich (Unbewohnte)
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -27,6 +27,15 @@ import (
 const (
 	QueryLinks  string = "links"
 	QueryImages string = "images"
+	QueryVideos string = "videos"
+	QueryAudio  string = "audio"
+)
+
+const (
+	SavePagesDir  string = "pages"
+	SaveImagesDir string = "images"
+	SaveVideosDir string = "videos"
+	SaveAudioDir  string = "audio"
 )
 
 type Search struct {
@@ -41,9 +50,10 @@ type Save struct {
 }
 
 type Requests struct {
-	WaitTimeoutMs  uint64 `json:"wait_timeout_ms"`
-	RequestPauseMs uint64 `json:"request_pause_ms"`
-	UserAgent      string `json:"user_agent"`
+	RequestWaitTimeoutMs  uint64 `json:"request_wait_timeout_ms"`
+	RequestPauseMs        uint64 `json:"request_pause_ms"`
+	ContentFetchTimeoutMs uint64 `json:"content_fetch_timeout_ms"`
+	UserAgent             string `json:"user_agent"`
 }
 
 type Logging struct {
@@ -77,9 +87,10 @@ func Default() *Conf {
 			OutputFile: "scraped.json",
 		},
 		Requests: Requests{
-			UserAgent:      "",
-			WaitTimeoutMs:  1500,
-			RequestPauseMs: 100,
+			UserAgent:             "",
+			RequestWaitTimeoutMs:  1500,
+			RequestPauseMs:        100,
+			ContentFetchTimeoutMs: 0,
 		},
 		InitialPages:       []string{""},
 		Depth:              5,
@@ -95,7 +106,7 @@ func Default() *Conf {
 
 // Write current configuration to w
 func (c *Conf) WriteTo(w io.Writer) error {
-	jsonData, err := json.MarshalIndent(c, "", "  ")
+	jsonData, err := json.MarshalIndent(c, " ", "\t")
 	if err != nil {
 		return err
 	}

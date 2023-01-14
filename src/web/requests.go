@@ -1,6 +1,6 @@
 /*
 	Wecr - crawl the web for data
-	Copyright (C) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)
+	Copyright (C) 2022, 2023 Kasyanov Nikolay Alexeyevich (Unbewohnte)
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -21,18 +21,24 @@ package web
 import (
 	"io"
 	"net/http"
+	"os"
 	"time"
 )
 
 // Get page data coming from url with optional user agent and timeout
 func GetPage(url string, userAgent string, timeOutMs uint64) ([]byte, error) {
+	// client := &http.Client{}
+	// client.CheckRedirect = http.DefaultClient.CheckRedirect
+	// client.Transport = http.DefaultClient.Transport
+	// client.Timeout = time.Duration(timeOutMs)
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", userAgent)
 
-	http.DefaultClient.Timeout = time.Duration(timeOutMs * uint64(time.Millisecond))
+	// response, err := client.Do(req)
 	response, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -45,4 +51,34 @@ func GetPage(url string, userAgent string, timeOutMs uint64) ([]byte, error) {
 	}
 
 	return responseBody, nil
+}
+
+// Fetch file from url and save to file at filePath
+func FetchFile(url string, userAgent string, timeOutMs uint64, filePath string) error {
+	client := http.Client{}
+	client.Timeout = time.Duration(timeOutMs)
+	client.CheckRedirect = http.DefaultClient.CheckRedirect
+	client.Transport = http.DefaultClient.Transport
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", userAgent)
+
+	response, err := client.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer response.Body.Close()
+
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, _ = io.Copy(file, response.Body)
+
+	return nil
 }

@@ -1,6 +1,6 @@
 /*
 	Wecr - crawl the web for data
-	Copyright (C) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)
+	Copyright (C) 2022, 2023 Kasyanov Nikolay Alexeyevich (Unbewohnte)
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -36,7 +36,7 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.1.4"
+const version = "v0.2.0"
 
 const (
 	defaultConfigFile string = "conf.json"
@@ -82,7 +82,7 @@ func init() {
 
 	if *printVersion {
 		fmt.Printf(
-			"Wecr %s - crawl the web for data\n(c) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)\n",
+			"Wecr %s - crawl the web for data\n(c) 2023 Kasyanov Nikolay Alexeyevich (Unbewohnte)\n",
 			version,
 		)
 		os.Exit(0)
@@ -97,7 +97,7 @@ func init() {
 ╚███╔███╔╝███████╗╚██████╗██║  ██║
  ╚══╝╚══╝ ╚══════╝ ╚═════╝╚═╝  ╚═╝`),
 	)
-	logger.GetOutput().Write([]byte(version + "\n\n"))
+	logger.GetOutput().Write([]byte(version + " by Unbewohnte\n\n"))
 
 	// work out working directory path
 	if *wDir != "" {
@@ -240,6 +240,7 @@ func main() {
 		logger.Warning("User agent is not set. Forced to \"%s\"", conf.Requests.UserAgent)
 	}
 
+	// create output directories and corresponding specialized ones
 	if !filepath.IsAbs(conf.Save.OutputDir) {
 		conf.Save.OutputDir = filepath.Join(workingDirectory, conf.Save.OutputDir)
 	}
@@ -249,11 +250,39 @@ func main() {
 		return
 	}
 
+	err = os.MkdirAll(filepath.Join(conf.Save.OutputDir, config.SavePagesDir), os.ModePerm)
+	if err != nil {
+		logger.Error("Failed to create output directory for pages: %s", err)
+		return
+	}
+
+	err = os.MkdirAll(filepath.Join(conf.Save.OutputDir, config.SaveImagesDir), os.ModePerm)
+	if err != nil {
+		logger.Error("Failed to create output directory for images: %s", err)
+		return
+	}
+
+	err = os.MkdirAll(filepath.Join(conf.Save.OutputDir, config.SaveVideosDir), os.ModePerm)
+	if err != nil {
+		logger.Error("Failed to create output directory for video: %s", err)
+		return
+	}
+
+	err = os.MkdirAll(filepath.Join(conf.Save.OutputDir, config.SaveAudioDir), os.ModePerm)
+	if err != nil {
+		logger.Error("Failed to create output directory for audio: %s", err)
+		return
+	}
+
 	switch conf.Search.Query {
 	case config.QueryLinks:
 		logger.Info("Looking for links")
 	case config.QueryImages:
-		logger.Info("Looking for images")
+		logger.Info("Looking for images (%+s)", web.ImageExtentions)
+	case config.QueryVideos:
+		logger.Info("Looking for videos (%+s)", web.VideoExtentions)
+	case config.QueryAudio:
+		logger.Info("Looking for audio (%+s)", web.AudioExtentions)
 	default:
 		if conf.Search.IsRegexp {
 			logger.Info("Looking for RegExp matches (%s)", conf.Search.Query)
@@ -319,7 +348,7 @@ func main() {
 
 				timeSince := time.Since(workerPool.Stats.StartTime).Round(time.Second)
 
-				fmt.Fprintf(os.Stdout, "\r[%s] %d pages visited; %d saved; %d matches (%d pages/sec)",
+				fmt.Fprintf(os.Stdout, "\r[%s] %d pages visited; %d pages saved; %d matches (%d pages/sec)",
 					timeSince.String(),
 					workerPool.Stats.PagesVisited,
 					workerPool.Stats.PagesSaved,
@@ -338,7 +367,7 @@ func main() {
 		}
 
 		// each entry in output file is a self-standing JSON object
-		entryBytes, err := json.MarshalIndent(result, "", "  ")
+		entryBytes, err := json.MarshalIndent(result, " ", "\t")
 		if err != nil {
 			continue
 		}

@@ -1,6 +1,6 @@
 /*
 	Wecr - crawl the web for data
-	Copyright (C) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)
+	Copyright (C) 2022, 2023 Kasyanov Nikolay Alexeyevich (Unbewohnte)
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -24,9 +24,13 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-
-	"golang.org/x/net/html"
 )
+
+// matches href="link" or something down bad like hReF =  'link'
+var tagHrefRegexp *regexp.Regexp = regexp.MustCompile(`(?i)(href)[\s]*=[\s]*("|')(.*?)("|')`)
+
+// matches src="link" or even something along the lines of SrC    =  'link'
+var tagSrcRegexp *regexp.Regexp = regexp.MustCompile(`(?i)(src)[\s]*=[\s]*("|')(.*?)("|')`)
 
 // Fix relative link and construct an absolute one. Does nothing if the URL already looks alright
 func ResolveLink(url *url.URL, fromHost string) string {
@@ -39,7 +43,6 @@ func ResolveLink(url *url.URL, fromHost string) string {
 		if url.Host == "" {
 			// add host
 			url.Host = fromHost
-
 		}
 	}
 
@@ -50,36 +53,41 @@ func ResolveLink(url *url.URL, fromHost string) string {
 func FindPageLinks(pageBody []byte, from *url.URL) []string {
 	var urls []string
 
-	tokenizer := html.NewTokenizer(bytes.NewReader(pageBody))
-	for {
-		tokenType := tokenizer.Next()
+	for _, match := range tagHrefRegexp.FindAllString(string(pageBody), -1) {
+		var linkStartIndex int
+		var linkEndIndex int
 
-		switch tokenType {
-		case html.ErrorToken:
-			return urls
-
-		case html.StartTagToken:
-			token := tokenizer.Token()
-
-			if token.Data != "a" {
+		linkStartIndex = strings.Index(match, "\"")
+		if linkStartIndex == -1 {
+			linkStartIndex = strings.Index(match, "'")
+			if linkStartIndex == -1 {
 				continue
 			}
 
-			// recheck
-			for _, attribute := range token.Attr {
-				if attribute.Key != "href" {
-					continue
-				}
-
-				link, err := url.Parse(attribute.Val)
-				if err != nil {
-					break
-				}
-
-				urls = append(urls, ResolveLink(link, from.Host))
+			linkEndIndex = strings.LastIndex(match, "'")
+			if linkEndIndex == -1 {
+				continue
+			}
+		} else {
+			linkEndIndex = strings.LastIndex(match, "\"")
+			if linkEndIndex == -1 {
+				continue
 			}
 		}
+
+		if linkEndIndex <= linkStartIndex+1 {
+			continue
+		}
+
+		link, err := url.Parse(match[linkStartIndex+1 : linkEndIndex])
+		if err != nil {
+			continue
+		}
+
+		urls = append(urls, ResolveLink(link, from.Host))
 	}
+
+	return urls
 }
 
 // Tries to find a certain string in page. Returns true if such string has been found

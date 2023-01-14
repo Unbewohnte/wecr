@@ -1,6 +1,6 @@
 /*
 	Wecr - crawl the web for data
-	Copyright (C) 2022, 2023 Kasyanov Nikolay Alexeyevich (Unbewohnte)
+	Copyright (C) 2023 Kasyanov Nikolay Alexeyevich (Unbewohnte)
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -23,8 +23,8 @@ import (
 	"strings"
 )
 
-func hasImageExtention(url string) bool {
-	for _, extention := range ImageExtentions {
+func hasVideoExtention(url string) bool {
+	for _, extention := range VideoExtentions {
 		if strings.HasSuffix(url, extention) {
 			return true
 		}
@@ -33,8 +33,8 @@ func hasImageExtention(url string) bool {
 	return false
 }
 
-// Tries to find images' URLs on the page
-func FindPageImages(pageBody []byte, from *url.URL) []string {
+// Tries to find videos' URLs on the page
+func FindPageVideos(pageBody []byte, from *url.URL) []string {
 	var urls []string
 
 	// for every element that has "src" attribute
@@ -64,13 +64,13 @@ func FindPageImages(pageBody []byte, from *url.URL) []string {
 			continue
 		}
 
-		link, err := url.Parse(match)
+		link, err := url.Parse(match[linkStartIndex+1 : linkEndIndex])
 		if err != nil {
 			continue
 		}
 
 		linkResolved := ResolveLink(link, from.Host)
-		if hasImageExtention(linkResolved) {
+		if hasVideoExtention(linkResolved) {
 			urls = append(urls, linkResolved)
 		}
 	}
@@ -108,11 +108,11 @@ func FindPageImages(pageBody []byte, from *url.URL) []string {
 		}
 
 		linkResolved := ResolveLink(link, from.Host)
-		if hasImageExtention(linkResolved) {
+		if hasVideoExtention(linkResolved) {
 			urls = append(urls, linkResolved)
 		}
 	}
 
-	// return discovered mutual image urls from <img> and <a> tags
+	// return discovered mutual video urls
 	return urls
 }

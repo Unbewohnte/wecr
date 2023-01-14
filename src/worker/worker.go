@@ -1,6 +1,6 @@
 /*
 	Wecr - crawl the web for data
-	Copyright (C) 2022 Kasyanov Nikolay Alexeyevich (Unbewohnte)
+	Copyright (C) 2022, 2023 Kasyanov Nikolay Alexeyevich (Unbewohnte)
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as published by
@@ -20,8 +20,6 @@ package worker
 
 import (
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -63,20 +61,70 @@ func NewWorker(jobs chan web.Job, results chan web.Result, conf WorkerConf, visi
 	}
 }
 
+func (w *Worker) saveContent(contenType string, links []string, pageURL *url.URL) {
+	var alreadyProcessedUrls []string
+	for count, link := range links {
+		// check if this URL has been processed already
+		var skip bool = false
+
+		for _, processedURL := range alreadyProcessedUrls {
+			if link == processedURL {
+				skip = true
+				break
+			}
+		}
+
+		if skip {
+			skip = false
+			continue
+		}
+		alreadyProcessedUrls = append(alreadyProcessedUrls, link)
+
+		var fileName string = fmt.Sprintf("%s_%d_%s", pageURL.Host, count, path.Base(link))
+
+		var filePath string
+		switch contenType {
+		case config.QueryImages:
+			filePath = filepath.Join(w.Conf.Save.OutputDir, config.SaveImagesDir, fileName)
+		case config.QueryVideos:
+			filePath = filepath.Join(w.Conf.Save.OutputDir, config.SaveVideosDir, fileName)
+		case config.QueryAudio:
+			filePath = filepath.Join(w.Conf.Save.OutputDir, config.SaveAudioDir, fileName)
+		default:
+			filePath = filepath.Join(w.Conf.Save.OutputDir, fileName)
+		}
+
+		err := web.FetchFile(
+			link,
+			w.Conf.Requests.UserAgent,
+			w.Conf.Requests.ContentFetchTimeoutMs,
+			filePath,
+		)
+		if err != nil {
+			logger.Error("Failed to fetch file at %s: %s", link, err)
+			return
+		}
+
+		logger.Info("Outputted \"%s\"", fileName)
+		w.stats.MatchesFound++
+	}
+}
+
 // Save page to the disk with a corresponding name
 func (w *Worker) savePage(baseURL *url.URL, pageData []byte) {
 	if w.Conf.Save.SavePages && w.Conf.Save.OutputDir != "" {
 		var pageName string = fmt.Sprintf("%s_%s.html", baseURL.Host, path.Base(baseURL.String()))
-		pageFile, err := os.Create(filepath.Join(w.Conf.Save.OutputDir, pageName))
+		pageFile, err := os.Create(filepath.Join(w.Conf.Save.OutputDir, config.SavePagesDir, pageName))
 		if err != nil {
 			logger.Error("Failed to create page of \"%s\": %s", baseURL.String(), err)
-		} else {
-			pageFile.Write(pageData)
+			return
 		}
+		defer pageFile.Close()
 
-		pageFile.Close()
+		pageFile.Write(pageData)
 
 		logger.Info("Saved \"%s\"", pageName)
+		w.stats.PagesSaved++
 	}
 }
 
@@ -151,7 +199,7 @@ func (w *Worker) Work() {
 
 		// get page
 		logger.Info("Visiting %s", job.URL)
-		pageData, err := web.GetPage(job.URL, w.Conf.Requests.UserAgent, w.Conf.Requests.WaitTimeoutMs)
+		pageData, err := web.GetPage(job.URL, w.Conf.Requests.UserAgent, w.Conf.Requests.RequestWaitTimeoutMs)
 		if err != nil {
 			logger.Error("Failed to get \"%s\": %s", job.URL, err)
 			continue
@@ -196,49 +244,26 @@ func (w *Worker) Work() {
 		case config.QueryImages:
 			// find image URLs, output images to the file while not saving already outputted ones
 			imageLinks := web.FindPageImages(pageData, pageURL)
-
-			var alreadyProcessedImgUrls []string
-			for count, imageLink := range imageLinks {
-				// check if this URL has been processed already
-				var skipImage bool = false
-
-				for _, processedURL := range alreadyProcessedImgUrls {
-					if imageLink == processedURL {
-						skipImage = true
-						break
-					}
-				}
-
-				if skipImage {
-					skipImage = false
-					continue
-				}
-				alreadyProcessedImgUrls = append(alreadyProcessedImgUrls, imageLink)
-
-				var imageName string = fmt.Sprintf("%s_%d_%s", pageURL.Host, count, path.Base(imageLink))
-
-				response, err := http.Get(imageLink)
-				if err != nil {
-					logger.Error("Failed to get image %s", imageLink)
-					continue
-				}
-
-				imageFile, err := os.Create(filepath.Join(w.Conf.Save.OutputDir, imageName))
-				if err != nil {
-					logger.Error("Failed to create image file \"%s\": %s", imageName, err)
-					continue
-				}
-
-				_, _ = io.Copy(imageFile, response.Body)
-
-				response.Body.Close()
-				imageFile.Close()
-
-				logger.Info("Outputted \"%s\"", imageName)
-				w.stats.MatchesFound++
+			w.saveContent(config.QueryImages, imageLinks, pageURL)
+			if len(imageLinks) > 0 {
+				savePage = true
 			}
 
-			if len(imageLinks) > 0 {
+		case config.QueryVideos:
+			// search for videos
+			// find video URLs, output videos to the files while not saving already outputted ones
+			videoLinks := web.FindPageVideos(pageData, pageURL)
+			w.saveContent(config.QueryVideos, videoLinks, pageURL)
+			if len(videoLinks) > 0 {
+				savePage = true
+			}
+
+		case config.QueryAudio:
+			// search for audio
+			// find audio URLs, output audio to the file while not saving already outputted ones
+			audioLinks := web.FindPageAudio(pageData, pageURL)
+			w.saveContent(config.QueryAudio, audioLinks, pageURL)
+			if len(audioLinks) > 0 {
 				savePage = true
 			}
 
@@ -284,7 +309,6 @@ func (w *Worker) Work() {
 		// save page
 		if savePage {
 			w.savePage(pageURL, pageData)
-			w.stats.PagesSaved++
 		}
 
 		// sleep before the next request
