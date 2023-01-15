@@ -276,7 +276,7 @@ func main() {
 
 	switch conf.Search.Query {
 	case config.QueryEmail:
-		logger.Info("Looking for emails")
+		logger.Info("Looking for email addresses")
 	case config.QueryImages:
 		logger.Info("Looking for images (%+s)", web.ImageExtentions)
 	case config.QueryVideos:
@@ -284,7 +284,7 @@ func main() {
 	case config.QueryAudio:
 		logger.Info("Looking for audio (%+s)", web.AudioExtentions)
 	case config.QueryEverything:
-		logger.Info("Looking for emails, images, videos and audio (%+s - %+s - %+s)", web.ImageExtentions, web.VideoExtentions, web.AudioExtentions)
+		logger.Info("Looking for email addresses, images, videos and audio (%+s - %+s - %+s)", web.ImageExtentions, web.VideoExtentions, web.AudioExtentions)
 	default:
 		if conf.Search.IsRegexp {
 			logger.Info("Looking for RegExp matches (%s)", conf.Search.Query)

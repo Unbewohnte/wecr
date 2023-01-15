@@ -256,7 +256,7 @@ func (w *Worker) Work() {
 
 		case config.QueryEmail:
 			// search for email
-			emailAddresses := web.FindPageEmails(pageData)
+			emailAddresses := web.FindPageEmailsWithCheck(pageData)
 			if len(emailAddresses) > 0 {
 				w.Results <- web.Result{
 					PageURL: job.URL,
@@ -278,7 +278,7 @@ func (w *Worker) Work() {
 			w.saveContent(contentLinks, pageURL)
 
 			// email
-			emailAddresses := web.FindPageEmails(pageData)
+			emailAddresses := web.FindPageEmailsWithCheck(pageData)
 			if len(emailAddresses) > 0 {
 				w.Results <- web.Result{
 					PageURL: job.URL,
