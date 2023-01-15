@@ -34,9 +34,9 @@ var tagHrefRegexp *regexp.Regexp = regexp.MustCompile(`(?i)(href)[\s]*=[\s]*("|'
 // matches src="link" or even something along the lines of SrC    =  'link'
 var tagSrcRegexp *regexp.Regexp = regexp.MustCompile(`(?i)(src)[\s]*=[\s]*("|')(.*?)("|')`)
 
-// var emailRegexp *regexp.Regexp = regexp.MustCompile(`[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}`)
+var emailRegexp *regexp.Regexp = regexp.MustCompile(`[A-Za-z0-9._%+\-!%&?~^#$]+@[A-Za-z0-9.\-]+\.[a-zA-Z]{2,4}`)
 
-var emailRegexp *regexp.Regexp = regexp.MustCompile("[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*")
+// var emailRegexp *regexp.Regexp = regexp.MustCompile("[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*")
 
 // Fix relative link and construct an absolute one. Does nothing if the URL already looks alright
 func ResolveLink(url *url.URL, fromHost string) string {
@@ -158,8 +158,8 @@ func FindPageEmailsWithCheck(pageBody []byte) []string {
 
 	emailAddresses := FindPageEmails(pageBody)
 	for _, email := range emailAddresses {
-		_, err := net.LookupMX(strings.Split(email, "@")[1])
-		if err != nil {
+		mx, err := net.LookupMX(strings.Split(email, "@")[1])
+		if err != nil || len(mx) == 0 {
 			continue
 		}
 

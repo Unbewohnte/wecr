@@ -4,6 +4,9 @@ TESTDIR:=testing
 RELEASEDIR:=release
 LICENSE:=COPYING
 README:=README.md
+UTILITIESDIR:=utilities
+UTILITYEXTRACTOR:=extractor
+BUILDDIR:=build
 
 LINUXDIR:=$(EXE)_linux
 WINDIR:=$(EXE)_windows
@@ -17,7 +20,7 @@ WINDIR64:=$(WINDIR)_x64
 DARWINDIR64:=$(DARWINDIR)_x64
 
 
-all:
+all: clean
 	cd $(SRCDIR) && go build && mv $(EXE) ..
 
 test: all
@@ -27,9 +30,9 @@ test: all
 	cp conf.json $(TESTDIR)
 
 clean:
-	rm -rf $(TESTDIR) $(EXE)
+	rm -rf $(TESTDIR) $(EXE) $(RELEASEDIR)
 
-release:
+release: clean
 	rm -rf $(RELEASEDIR)
 
 	mkdir -p $(RELEASEDIR)/$(LINUXDIR64)

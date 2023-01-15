@@ -6,7 +6,7 @@ Just a simple HTML web spider with minimal dependencies. It is possible to searc
 
 ## Configuration
 
-The flow of work fully depends on the configuration file. By default `conf.json` is used as a configuration file, but the name can be changed via `-conf` flag. The default configuration is embedded in the program so on the first launch or by simply deleting the file, a new `conf.json` will be created in the same directory as the executable itself unless the `-wDir` (working directory) flag is set to some other value.
+The flow of work fully depends on the configuration file. By default `conf.json` is used as a configuration file, but the name can be changed via `-conf` flag. The default configuration is embedded in the program so on the first launch or by simply deleting the file, a new `conf.json` will be created in the same directory as the executable itself unless the `-wDir` (working directory) flag is set to some other value. To see al available flags run `wecr -h`.
 
 The configuration is split into different branches like `requests` (how requests are made, ie: request timeout, wait time, user agent), `logging` (use logs, output to a file), `save` (output file|directory, save pages or not) or `search` (use regexp, query string) each of which contain tweakable parameters. There are global ones as well such as `workers` (working threads that make requests in parallel) and `depth` (literally, how deep the recursive search should go). The names are simple and self-explanatory so no attribute-by-attribute explanation needed for most of them.
 
@@ -28,12 +28,11 @@ When `is_regexp` is enabled, the `query` is treated as a regexp string and pages
 
 By default, if the query is not something of special values all the matches and other data will be outputted to `output.json` file as separate continuous JSON objects, but if `save_pages` is set to `true` and|or `query` is set to `images`, `videos`, `audio`, etc. - the additional contents will be put in the corresponding directories inside `output_dir`, which is neatly created by the executable's side.
 
-## TODO
+## Build
 
-- **PARSE HTML WITH REGEXP (_EVIL LAUGH_)** - Done
-- Search for videos - Done
-- Search for audio - Done
-- Search for documents
+If you're on *nix - it's as easy as `make`.
+
+Otherwise - `go build` in the `src` directory to build `wecr`. 
 
 ## License
 AGPLv3

@@ -89,7 +89,7 @@ func Default() *Conf {
 		},
 		Requests: Requests{
 			UserAgent:             "",
-			RequestWaitTimeoutMs:  1500,
+			RequestWaitTimeoutMs:  2500,
 			RequestPauseMs:        100,
 			ContentFetchTimeoutMs: 0,
 		},

@@ -32,6 +32,7 @@ import (
 	"time"
 	"unbewohnte/wecr/config"
 	"unbewohnte/wecr/logger"
+	"unbewohnte/wecr/utilities"
 	"unbewohnte/wecr/web"
 	"unbewohnte/wecr/worker"
 )
@@ -39,8 +40,9 @@ import (
 const version = "v0.2.1"
 
 const (
-	defaultConfigFile string = "conf.json"
-	defaultOutputFile string = "output.json"
+	defaultConfigFile           string = "conf.json"
+	defaultOutputFile           string = "output.json"
+	defaultPrettifiedOutputFile string = "extracted_data.txt"
 )
 
 var (
@@ -62,6 +64,11 @@ var (
 	outputFile = flag.String(
 		"out", defaultOutputFile,
 		"Output file name to output information into",
+	)
+
+	extractDataFilename = flag.String(
+		"extractData", "",
+		"Set filename for output JSON file and extract data from it, put each entry nicely on a new line in a new file, then exit",
 	)
 
 	workingDirectory string
@@ -112,6 +119,18 @@ func init() {
 	}
 
 	logger.Info("Working in \"%s\"", workingDirectory)
+
+	// extract data if needed
+	if strings.TrimSpace(*extractDataFilename) != "" {
+		logger.Info("Extracting data from %s...", *extractDataFilename)
+		err := utilities.ExtractDataFromOutput(*extractDataFilename, defaultPrettifiedOutputFile, "\n", false)
+		if err != nil {
+			logger.Error("Failed to extract data from %s: %s", *extractDataFilename, err)
+			os.Exit(1)
+		}
+		logger.Info("Outputted \"%s\"", defaultPrettifiedOutputFile)
+		os.Exit(0)
+	}
 
 	// global path to configuration file
 	configFilePath = filepath.Join(workingDirectory, *configFile)
