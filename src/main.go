@@ -39,7 +39,7 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.2.2"
+const version = "v0.2.3"
 
 const (
 	defaultConfigFile           string = "conf.json"
@@ -368,19 +368,20 @@ func main() {
 	// if logs are not used or are printed to the file - output a nice statistics message on the screen
 	if !conf.Logging.OutputLogs || (conf.Logging.OutputLogs && conf.Logging.LogsFile != "") {
 		go func() {
+			var lastPagesVisited uint64 = 0
 			fmt.Printf("\n")
 			for {
 				time.Sleep(time.Second)
 
 				timeSince := time.Since(workerPool.Stats.StartTime).Round(time.Second)
-
 				fmt.Fprintf(os.Stdout, "\r[%s] %d pages visited; %d pages saved; %d matches (%d pages/sec)",
 					timeSince.String(),
 					workerPool.Stats.PagesVisited,
 					workerPool.Stats.PagesSaved,
 					workerPool.Stats.MatchesFound,
-					workerPool.Stats.PagesVisited/uint64(timeSince.Seconds()),
+					workerPool.Stats.PagesVisited-lastPagesVisited,
 				)
+				lastPagesVisited = workerPool.Stats.PagesVisited
 			}
 		}()
 	}
