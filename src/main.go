@@ -326,8 +326,8 @@ func main() {
 	defer outputFile.Close()
 
 	// prepare channels
-	jobs := make(chan web.Job, conf.Workers)
-	results := make(chan web.Result, conf.Workers)
+	jobs := make(chan web.Job, conf.Workers*5)
+	results := make(chan web.Result, conf.Workers*5)
 
 	// create initial jobs
 	for _, initialPage := range conf.InitialPages {
