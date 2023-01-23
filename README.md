@@ -2,7 +2,7 @@
 
 ## Overview
 
-Just a simple HTML web spider with minimal dependencies. It is possible to search for pages with a text on them or for the text itself, extract images and save pages that satisfy the criteria along the way. 
+Just a simple HTML web spider with no dependencies. It is possible to search for pages with a text on them or for the text itself, extract images, video, audio and save pages that satisfy the criteria along the way. 
 
 ## Configuration
 
@@ -28,11 +28,17 @@ When `is_regexp` is enabled, the `query` is treated as a regexp string and pages
 
 By default, if the query is not something of special values all the matches and other data will be outputted to `output.json` file as separate continuous JSON objects, but if `save_pages` is set to `true` and|or `query` is set to `images`, `videos`, `audio`, etc. - the additional contents will be put in the corresponding directories inside `output_dir`, which is neatly created by the executable's side.
 
+The output almost certainly contains some duplicates and is not easy to work with programmatically, so you can use `-extractData` with the output JSON file argument (like `output.json`, which is the default output file name) to extract the actual data, filter out the duplicates and put each entry on its new line in a new text file. 
+
 ## Build
 
 If you're on *nix - it's as easy as `make`.
 
 Otherwise - `go build` in the `src` directory to build `wecr`. 
+
+## Examples
+
+See [page on my website](https://unbewohnte.su/wecr) for some basic examples.
 
 ## License
 AGPLv3
