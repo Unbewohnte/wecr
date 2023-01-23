@@ -27,10 +27,8 @@ import (
 
 // Get page data coming from url with optional user agent and timeout
 func GetPage(url string, userAgent string, timeOutMs uint64) ([]byte, error) {
-	// client := &http.Client{}
-	// client.CheckRedirect = http.DefaultClient.CheckRedirect
-	// client.Transport = http.DefaultClient.Transport
-	// client.Timeout = time.Duration(timeOutMs)
+	http.DefaultClient.CloseIdleConnections()
+	http.DefaultClient.Timeout = time.Duration(timeOutMs * uint64(time.Millisecond))
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -38,19 +36,18 @@ func GetPage(url string, userAgent string, timeOutMs uint64) ([]byte, error) {
 	}
 	req.Header.Set("User-Agent", userAgent)
 
-	// response, err := client.Do(req)
 	response, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer response.Body.Close()
 
-	responseBody, err := io.ReadAll(response.Body)
+	pageData, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	return responseBody, nil
+	return pageData, nil
 }
 
 // Fetch file from url and save to file at filePath
@@ -65,11 +62,13 @@ func FetchFile(url string, userAgent string, timeOutMs uint64, filePath string) 
 		return err
 	}
 	req.Header.Set("User-Agent", userAgent)
+	req.Close = true
 
 	response, err := client.Do(req)
 	if err != nil {
 		return nil
 	}
+	response.Close = true
 	defer response.Body.Close()
 
 	file, err := os.Create(filePath)
@@ -79,6 +78,8 @@ func FetchFile(url string, userAgent string, timeOutMs uint64, filePath string) 
 	defer file.Close()
 
 	_, _ = io.Copy(file, response.Body)
+
+	client.CloseIdleConnections()
 
 	return nil
 }

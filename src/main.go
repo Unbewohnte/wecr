@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"os/signal"
@@ -37,7 +39,7 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.2.1"
+const version = "v0.2.2"
 
 const (
 	defaultConfigFile           string = "conf.json"
@@ -80,9 +82,8 @@ func init() {
 	// set log output
 	logger.SetOutput(os.Stdout)
 
-	// and work around random log prints by /x/net library
+	// make default http logger silent
 	log.SetOutput(io.Discard)
-	log.SetFlags(0)
 
 	// parse and process flags
 	flag.Parse()
@@ -137,6 +138,10 @@ func init() {
 
 	// global path to output file
 	outputFilePath = filepath.Join(workingDirectory, *outputFile)
+
+	go func() {
+		http.ListenAndServe(":8000", nil)
+	}()
 }
 
 func main() {
@@ -321,8 +326,8 @@ func main() {
 	defer outputFile.Close()
 
 	// prepare channels
-	jobs := make(chan web.Job, conf.Workers*5)
-	results := make(chan web.Result, conf.Workers*5)
+	jobs := make(chan web.Job, conf.Workers)
+	results := make(chan web.Result, conf.Workers)
 
 	// create initial jobs
 	for _, initialPage := range conf.InitialPages {

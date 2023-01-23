@@ -222,6 +222,7 @@ func (w *Worker) Work() {
 					}
 				}
 			}
+			pageLinks = nil
 		}()
 
 		// process and output result
@@ -336,6 +337,8 @@ func (w *Worker) Work() {
 		if savePage {
 			w.savePage(pageURL, pageData)
 		}
+		pageData = nil
+		pageURL = nil
 
 		// sleep before the next request
 		time.Sleep(time.Duration(w.Conf.Requests.RequestPauseMs * uint64(time.Millisecond)))

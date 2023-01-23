@@ -20,7 +20,7 @@ WINDIR64:=$(WINDIR)_x64
 DARWINDIR64:=$(DARWINDIR)_x64
 
 
-all: clean
+all:
 	cd $(SRCDIR) && go build && mv $(EXE) ..
 
 test: all
