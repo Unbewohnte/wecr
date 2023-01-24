@@ -10,7 +10,9 @@ The flow of work fully depends on the configuration file. By default `conf.json`
 
 The configuration is split into different branches like `requests` (how requests are made, ie: request timeout, wait time, user agent), `logging` (use logs, output to a file), `save` (output file|directory, save pages or not) or `search` (use regexp, query string) each of which contain tweakable parameters. There are global ones as well such as `workers` (working threads that make requests in parallel) and `depth` (literally, how deep the recursive search should go). The names are simple and self-explanatory so no attribute-by-attribute explanation needed for most of them.
 
-The parsing starts from `initial_pages` and goes deeper while ignoring the pages on domains that are in `blacklisted_domains` or are NOT in `allowed_domains`. If all initial pages are happen to be on blacklisted domains or are not in the allowed list - the program will get stuck. It is important to note that `*_domains` should be specified with an existing scheme (ie: https://en.wikipedia.org). Subdomains and ports **matter**: `https://unbewohnte.su:3000/` and `https://unbewohnte.su/` are **different**.  
+The parsing starts from `initial_pages` and goes deeper while ignoring the pages on domains that are in `blacklisted_domains` or are NOT in `allowed_domains`. If all initial pages are happen to be on blacklisted domains or are not in the allowed list - the program will get stuck. It is important to note that `*_domains` should be specified with an existing scheme (ie: https://en.wikipedia.org). Subdomains and ports **matter**: `https://unbewohnte.su:3000/` and `https://unbewohnte.su/` are **different**.
+
+Previous versions stored the entire visit queue in memory, resulting in gigabytes of memory usage but as of `v0.2.4` it is possible to offload the queue to the persistent storage via `in_memory_visit_queue` option (`false` by default).  
 
 ### Search query
 
