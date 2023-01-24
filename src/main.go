@@ -24,13 +24,12 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
-	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 	"unbewohnte/wecr/config"
 	"unbewohnte/wecr/logger"
@@ -39,12 +38,13 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.2.3"
+const version = "v0.2.4"
 
 const (
 	defaultConfigFile           string = "conf.json"
 	defaultOutputFile           string = "output.json"
 	defaultPrettifiedOutputFile string = "extracted_data.txt"
+	defaultVisitQueueFile       string = "visit_queue.tmp"
 )
 
 var (
@@ -138,10 +138,6 @@ func init() {
 
 	// global path to output file
 	outputFilePath = filepath.Join(workingDirectory, *outputFile)
-
-	go func() {
-		http.ListenAndServe(":8000", nil)
-	}()
 }
 
 func main() {
@@ -325,16 +321,47 @@ func main() {
 	}
 	defer outputFile.Close()
 
-	// prepare channels
 	jobs := make(chan web.Job, conf.Workers*5)
 	results := make(chan web.Result, conf.Workers*5)
 
+	// create visit queue file if not turned off
+	var visitQueueFile *os.File = nil
+	if !conf.InMemoryVisitQueue {
+		var err error
+		visitQueueFile, err = os.Create(filepath.Join(workingDirectory, defaultVisitQueueFile))
+		if err != nil {
+			logger.Error("Could not create visit queue temporary file: %s", err)
+			return
+		}
+		defer func() {
+			visitQueueFile.Close()
+			// os.Remove(filepath.Join(workingDirectory, defaultVisitQueueFile))
+		}()
+	}
+
 	// create initial jobs
-	for _, initialPage := range conf.InitialPages {
-		jobs <- web.Job{
-			URL:    initialPage,
-			Search: conf.Search,
-			Depth:  conf.Depth,
+	if !conf.InMemoryVisitQueue {
+		encoder := json.NewEncoder(visitQueueFile)
+		for _, initialPage := range conf.InitialPages {
+			var newJob web.Job = web.Job{
+				URL:    initialPage,
+				Search: conf.Search,
+				Depth:  conf.Depth,
+			}
+			err = encoder.Encode(&newJob)
+			if err != nil {
+				logger.Error("Failed to encode an initial job to the visit queue: %s", err)
+				continue
+			}
+		}
+		visitQueueFile.Seek(0, io.SeekStart)
+	} else {
+		for _, initialPage := range conf.InitialPages {
+			jobs <- web.Job{
+				URL:    initialPage,
+				Search: conf.Search,
+				Depth:  conf.Depth,
+			}
 		}
 	}
 
@@ -344,6 +371,10 @@ func main() {
 		Save:               conf.Save,
 		BlacklistedDomains: conf.BlacklistedDomains,
 		AllowedDomains:     conf.AllowedDomains,
+		VisitQueue: worker.VisitQueue{
+			VisitQueue: visitQueueFile,
+			Lock:       &sync.Mutex{},
+		},
 	})
 	logger.Info("Created a worker pool with %d workers", conf.Workers)
 
