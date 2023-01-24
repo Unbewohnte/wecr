@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"unbewohnte/wecr/logger"
 	"unbewohnte/wecr/web"
 )
 
@@ -33,7 +32,6 @@ func PopLastJob(queue *os.File) (*web.Job, error) {
 			offset -= 1
 			continue
 		}
-		logger.Info("Found job: %+v", job)
 
 		queue.Truncate(currentOffset)
 		return &job, nil
@@ -41,11 +39,10 @@ func PopLastJob(queue *os.File) (*web.Job, error) {
 }
 
 func InsertNewJob(queue *os.File, newJob web.Job) error {
-	offset, err := queue.Seek(0, io.SeekEnd)
+	_, err := queue.Seek(0, io.SeekEnd)
 	if err != nil {
 		return err
 	}
-	logger.Info("Inserting at offset %d", offset)
 
 	encoder := json.NewEncoder(queue)
 	err = encoder.Encode(&newJob)
