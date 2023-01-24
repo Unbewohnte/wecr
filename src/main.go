@@ -33,6 +33,7 @@ import (
 	"time"
 	"unbewohnte/wecr/config"
 	"unbewohnte/wecr/logger"
+	"unbewohnte/wecr/queue"
 	"unbewohnte/wecr/utilities"
 	"unbewohnte/wecr/web"
 	"unbewohnte/wecr/worker"
@@ -335,20 +336,19 @@ func main() {
 		}
 		defer func() {
 			visitQueueFile.Close()
-			// os.Remove(filepath.Join(workingDirectory, defaultVisitQueueFile))
+			os.Remove(filepath.Join(workingDirectory, defaultVisitQueueFile))
 		}()
 	}
 
 	// create initial jobs
 	if !conf.InMemoryVisitQueue {
-		encoder := json.NewEncoder(visitQueueFile)
 		for _, initialPage := range conf.InitialPages {
 			var newJob web.Job = web.Job{
 				URL:    initialPage,
 				Search: conf.Search,
 				Depth:  conf.Depth,
 			}
-			err = encoder.Encode(&newJob)
+			err = queue.InsertNewJob(visitQueueFile, newJob)
 			if err != nil {
 				logger.Error("Failed to encode an initial job to the visit queue: %s", err)
 				continue

@@ -25,11 +25,18 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sync"
 	"time"
 	"unbewohnte/wecr/config"
 	"unbewohnte/wecr/logger"
+	"unbewohnte/wecr/queue"
 	"unbewohnte/wecr/web"
 )
+
+type VisitQueue struct {
+	VisitQueue *os.File
+	Lock       *sync.Mutex
+}
 
 // Worker configuration
 type WorkerConf struct {
@@ -37,6 +44,7 @@ type WorkerConf struct {
 	Save               config.Save
 	BlacklistedDomains []string
 	AllowedDomains     []string
+	VisitQueue         VisitQueue
 }
 
 // Web worker
@@ -133,7 +141,22 @@ func (w *Worker) Work() {
 		return
 	}
 
-	for job := range w.Jobs {
+	for {
+		var job web.Job
+		if w.Conf.VisitQueue.VisitQueue != nil {
+			w.Conf.VisitQueue.Lock.Lock()
+			newJob, err := queue.PopLastJob(w.Conf.VisitQueue.VisitQueue)
+			if err != nil || newJob == nil {
+				logger.Error("Failed to get a new job from visit queue: %s", err)
+				w.Conf.VisitQueue.Lock.Unlock()
+				continue
+			}
+			job = *newJob
+			w.Conf.VisitQueue.Lock.Unlock()
+		} else {
+			job = <-w.Jobs
+		}
+
 		// check if the worker has been stopped
 		if w.Stopped {
 			// stop working
@@ -209,18 +232,39 @@ func (w *Worker) Work() {
 
 		go func() {
 			if job.Depth > 1 {
-				// decrement depth and add new jobs to the channel
+				// decrement depth and add new jobs
 				job.Depth--
 
-				for _, link := range pageLinks {
-					if link != job.URL {
-						w.Jobs <- web.Job{
-							URL:    link,
-							Search: job.Search,
-							Depth:  job.Depth,
+				if w.Conf.VisitQueue.VisitQueue != nil {
+					// add to the visit queue
+					w.Conf.VisitQueue.Lock.Lock()
+					for _, link := range pageLinks {
+						if link != job.URL {
+							err = queue.InsertNewJob(w.Conf.VisitQueue.VisitQueue, web.Job{
+								URL:    link,
+								Search: job.Search,
+								Depth:  job.Depth,
+							})
+							if err != nil {
+								logger.Error("Failed to encode a new job to a visit queue: %s", err)
+								continue
+							}
+						}
+					}
+					w.Conf.VisitQueue.Lock.Unlock()
+				} else {
+					//  add to the in-memory channel
+					for _, link := range pageLinks {
+						if link != job.URL {
+							w.Jobs <- web.Job{
+								URL:    link,
+								Search: job.Search,
+								Depth:  job.Depth,
+							}
 						}
 					}
 				}
+
 			}
 			pageLinks = nil
 		}()

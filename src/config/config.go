@@ -71,6 +71,7 @@ type Conf struct {
 	InitialPages       []string `json:"initial_pages"`
 	AllowedDomains     []string `json:"allowed_domains"`
 	BlacklistedDomains []string `json:"blacklisted_domains"`
+	InMemoryVisitQueue bool     `json:"in_memory_visit_queue"`
 	Save               Save     `json:"save"`
 	Logging            Logging  `json:"logging"`
 }
@@ -98,6 +99,7 @@ func Default() *Conf {
 		Workers:            20,
 		AllowedDomains:     []string{""},
 		BlacklistedDomains: []string{""},
+		InMemoryVisitQueue: false,
 		Logging: Logging{
 			OutputLogs: true,
 			LogsFile:   "logs.log",

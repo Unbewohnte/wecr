@@ -8,3 +8,4 @@ wecr
 release/
 scraped/
 extracted_data.txt
+visit_queue.tmp

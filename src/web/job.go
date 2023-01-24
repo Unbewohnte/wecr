@@ -22,7 +22,7 @@ import "unbewohnte/wecr/config"
 
 // Job to pass around workers
 type Job struct {
-	URL    string
-	Search config.Search
-	Depth  uint
+	URL    string        `json:"u"`
+	Search config.Search `json:"s"`
+	Depth  uint          `json:"d"`
 }
