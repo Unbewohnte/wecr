@@ -39,7 +39,7 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.2.4"
+const version = "v0.2.5"
 
 const (
 	defaultConfigFile           string = "conf.json"
@@ -295,6 +295,12 @@ func main() {
 		return
 	}
 
+	err = os.MkdirAll(filepath.Join(conf.Save.OutputDir, config.SaveDocumentsDir), os.ModePerm)
+	if err != nil {
+		logger.Error("Failed to create output directory for documents: %s", err)
+		return
+	}
+
 	switch conf.Search.Query {
 	case config.QueryEmail:
 		logger.Info("Looking for email addresses")
@@ -304,8 +310,15 @@ func main() {
 		logger.Info("Looking for videos (%+s)", web.VideoExtentions)
 	case config.QueryAudio:
 		logger.Info("Looking for audio (%+s)", web.AudioExtentions)
+	case config.QueryDocuments:
+		logger.Info("Looking for documents (%+s)", web.DocumentExtentions)
 	case config.QueryEverything:
-		logger.Info("Looking for email addresses, images, videos and audio (%+s - %+s - %+s)", web.ImageExtentions, web.VideoExtentions, web.AudioExtentions)
+		logger.Info("Looking for email addresses, images, videos, audio and various documents (%+s - %+s - %+s - %+s)",
+			web.ImageExtentions,
+			web.VideoExtentions,
+			web.AudioExtentions,
+			web.DocumentExtentions,
+		)
 	default:
 		if conf.Search.IsRegexp {
 			logger.Info("Looking for RegExp matches (%s)", conf.Search.Query)

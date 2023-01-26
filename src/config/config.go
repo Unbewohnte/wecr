@@ -29,14 +29,16 @@ const (
 	QueryVideos     string = "videos"
 	QueryAudio      string = "audio"
 	QueryEmail      string = "email"
+	QueryDocuments  string = "documents"
 	QueryEverything string = "everything"
 )
 
 const (
-	SavePagesDir  string = "pages"
-	SaveImagesDir string = "images"
-	SaveVideosDir string = "videos"
-	SaveAudioDir  string = "audio"
+	SavePagesDir     string = "pages"
+	SaveImagesDir    string = "images"
+	SaveVideosDir    string = "videos"
+	SaveAudioDir     string = "audio"
+	SaveDocumentsDir string = "documents"
 )
 
 type Search struct {

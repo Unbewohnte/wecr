@@ -97,6 +97,8 @@ func (w *Worker) saveContent(links []string, pageURL *url.URL) {
 			filePath = filepath.Join(w.Conf.Save.OutputDir, config.SaveVideosDir, fileName)
 		} else if web.HasAudioExtention(link) {
 			filePath = filepath.Join(w.Conf.Save.OutputDir, config.SaveAudioDir, fileName)
+		} else if web.HasDocumentExtention(link) {
+			filePath = filepath.Join(w.Conf.Save.OutputDir, config.SaveDocumentsDir, fileName)
 		} else {
 			filePath = filepath.Join(w.Conf.Save.OutputDir, fileName)
 		}
@@ -146,11 +148,16 @@ func (w *Worker) Work() {
 		if w.Conf.VisitQueue.VisitQueue != nil {
 			w.Conf.VisitQueue.Lock.Lock()
 			newJob, err := queue.PopLastJob(w.Conf.VisitQueue.VisitQueue)
-			if err != nil || newJob == nil {
+			if err != nil {
 				logger.Error("Failed to get a new job from visit queue: %s", err)
 				w.Conf.VisitQueue.Lock.Unlock()
 				continue
 			}
+			if newJob == nil {
+				w.Conf.VisitQueue.Lock.Unlock()
+				continue
+			}
+
 			job = *newJob
 			w.Conf.VisitQueue.Lock.Unlock()
 		} else {
@@ -276,8 +283,8 @@ func (w *Worker) Work() {
 		case config.QueryImages:
 			// find image URLs, output images to the file while not saving already outputted ones
 			imageLinks := web.FindPageImages(pageData, pageURL)
-			w.saveContent(imageLinks, pageURL)
 			if len(imageLinks) > 0 {
+				w.saveContent(imageLinks, pageURL)
 				savePage = true
 			}
 
@@ -285,8 +292,8 @@ func (w *Worker) Work() {
 			// search for videos
 			// find video URLs, output videos to the files while not saving already outputted ones
 			videoLinks := web.FindPageVideos(pageData, pageURL)
-			w.saveContent(videoLinks, pageURL)
 			if len(videoLinks) > 0 {
+				w.saveContent(videoLinks, pageURL)
 				savePage = true
 			}
 
@@ -294,8 +301,17 @@ func (w *Worker) Work() {
 			// search for audio
 			// find audio URLs, output audio to the file while not saving already outputted ones
 			audioLinks := web.FindPageAudio(pageData, pageURL)
-			w.saveContent(audioLinks, pageURL)
 			if len(audioLinks) > 0 {
+				w.saveContent(audioLinks, pageURL)
+				savePage = true
+			}
+
+		case config.QueryDocuments:
+			// search for various documents
+			// find documents URLs, output docs to the file while not saving already outputted ones
+			docsLinks := web.FindPageDocuments(pageData, pageURL)
+			if len(docsLinks) > 0 {
+				w.saveContent(docsLinks, pageURL)
 				savePage = true
 			}
 
@@ -320,6 +336,7 @@ func (w *Worker) Work() {
 			contentLinks = append(contentLinks, web.FindPageImages(pageData, pageURL)...)
 			contentLinks = append(contentLinks, web.FindPageAudio(pageData, pageURL)...)
 			contentLinks = append(contentLinks, web.FindPageVideos(pageData, pageURL)...)
+			contentLinks = append(contentLinks, web.FindPageDocuments(pageData, pageURL)...)
 			w.saveContent(contentLinks, pageURL)
 
 			// email

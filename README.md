@@ -22,7 +22,8 @@ There are some special `query` values:
 - `images` - find all images on pages and output to the corresponding directory in `output_dir` (**IMPORTANT**: set `content_fetch_timeout_ms` to `0` so the images (and other content below) load fully)
 - `videos` - find and fetch files that look like videos
 - `audio` - find and fetch files that look like audio
-- `everything` - find and fetch images, audio and video
+- `documents` - find and fetch files that look like a document
+- `everything` - find and fetch images, audio, video, documents and email addresses
 
 When `is_regexp` is enabled, the `query` is treated as a regexp string and pages will be scanned for matches that satisfy it.
 
