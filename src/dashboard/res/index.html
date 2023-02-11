@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Wecr dashboard</title>
+    <!-- <link rel="icon" href="/static/icon.png"> -->
+    <link rel="stylesheet" href="/static/bootstrap.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body class="d-flex flex-column h-100">
+    <div class="container">
+        <header class="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom">
+            <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-dark text-decoration-none">
+                <svg class="bi me-2" width="40" height="32">
+                    <use xlink:href="#bootstrap"></use>
+                </svg>
+                <strong class="fs-4">Wecr</strong>
+            </a>
+
+            <ul class="nav nav-pills">
+                <li class="nav-item"><a href="/stats" class="nav-link">Stats</a></li>
+                <li class="nav-item"><a href="/conf" class="nav-link">Config</a></li>
+            </ul>
+        </header>
+    </div>
+
+    <div class="container">
+        <h1>Dashboard</h1>
+
+        <h2>Statistics</h2>
+        <div id="statistics">
+            <ol class="list-group list-group-numbered">
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="ms-2 me-auto">
+                        <div class="fw-bold">Pages visited</div>
+                    </div>
+                    <span class="badge bg-primary rounded-pill" id="pages_visited">0</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="ms-2 me-auto">
+                        <div class="fw-bold">Matches found</div>
+                    </div>
+                    <span class="badge bg-primary rounded-pill" id="matches_found">0</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="ms-2 me-auto">
+                        <div class="fw-bold">Pages saved</div>
+                    </div>
+                    <span class="badge bg-primary rounded-pill" id="pages_saved">0</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="ms-2 me-auto">
+                        <div class="fw-bold">Start time</div>
+                    </div>
+                    <span class="badge bg-primary rounded-pill" id="start_time_unix">0</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div class="ms-2 me-auto">
+                        <div class="fw-bold">Stopped</div>
+                    </div>
+                    <span class="badge bg-primary rounded-pill" id="stopped">false</span>
+                </li>
+            </ol>
+        </div>
+
+        <!-- <h2>Configuration</h2>
+        <pre id="configuration"></pre> -->
+    </div>
+</body>
+
+<script>
+    window.onload = function () {
+        let confOutput = document.getElementById("configuration");
+        let pagesVisitedOut = document.getElementById("pages_visited");
+        let matchesFoundOut = document.getElementById("matches_found");
+        let pagesSavedOut = document.getElementById("pages_saved");
+        let startTimeOut = document.getElementById("start_time_unix");
+        let stoppedOut = document.getElementById("stopped");
+
+        const interval = setInterval(function () {
+            // update statistics
+            fetch("/stats")
+                .then((response) => response.json())
+                .then((statistics) => {
+                    pagesVisitedOut.innerText = statistics.pages_visited;
+                    matchesFoundOut.innerText = statistics.matches_found;
+                    pagesSavedOut.innerText = statistics.pages_saved;
+                    startTimeOut.innerText = new Date(1000 * statistics.start_time_unix);
+                    stoppedOut.innerText = statistics.stopped;
+                });
+            // // update config just in case
+            // fetch("/conf")
+            //     .then((response) => response.text())
+            //     .then((response_text) => JSON.parse(response_text))
+            //     .then((config) => {
+            //         confOutput.innerText = "Configuration: \n" + JSON.stringify(config);
+            //     });
+        }, 650);
+    }();
+</script>
+
+</html>

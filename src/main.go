@@ -32,6 +32,7 @@ import (
 	"sync"
 	"time"
 	"unbewohnte/wecr/config"
+	"unbewohnte/wecr/dashboard"
 	"unbewohnte/wecr/logger"
 	"unbewohnte/wecr/queue"
 	"unbewohnte/wecr/utilities"
@@ -39,7 +40,7 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.2.5"
+const version = "v0.3.0"
 
 const (
 	defaultConfigFile           string = "conf.json"
@@ -164,28 +165,15 @@ func main() {
 	}
 	logger.Info("Successfully opened configuration file")
 
-	// create logs if needed
-	if conf.Logging.OutputLogs {
-		if conf.Logging.LogsFile != "" {
-			// output logs to a file
-			logFile, err := os.Create(filepath.Join(workingDirectory, conf.Logging.LogsFile))
-			if err != nil {
-				logger.Error("Failed to create logs file: %s", err)
-				return
-			}
-			defer logFile.Close()
+	// Prepare global statistics variable
+	statistics := worker.Statistics{}
 
-			logger.Info("Outputting logs to %s", conf.Logging.LogsFile)
-			logger.SetOutput(logFile)
-		} else {
-			// output logs to stdout
-			logger.Info("Outputting logs to stdout")
-			logger.SetOutput(os.Stdout)
-		}
-	} else {
-		// no logging needed
-		logger.Info("No further logs will be outputted")
-		logger.SetOutput(nil)
+	// open dashboard if needed
+	var board *dashboard.Dashboard = nil
+	if conf.Dashboard.UseDashboard {
+		board = dashboard.NewDashboard(conf.Dashboard.Port, conf, &statistics)
+		go board.Launch()
+		logger.Info("Launched dashboard at http://localhost:%d", conf.Dashboard.Port)
 	}
 
 	// sanitize and correct inputs
@@ -335,6 +323,30 @@ func main() {
 	}
 	defer outputFile.Close()
 
+	// create logs if needed
+	if conf.Logging.OutputLogs {
+		if conf.Logging.LogsFile != "" {
+			// output logs to a file
+			logFile, err := os.Create(filepath.Join(workingDirectory, conf.Logging.LogsFile))
+			if err != nil {
+				logger.Error("Failed to create logs file: %s", err)
+				return
+			}
+			defer logFile.Close()
+
+			logger.Info("Outputting logs to %s", conf.Logging.LogsFile)
+			logger.SetOutput(logFile)
+		} else {
+			// output logs to stdout
+			logger.Info("Outputting logs to stdout")
+			logger.SetOutput(os.Stdout)
+		}
+	} else {
+		// no logging needed
+		logger.Info("No further logs will be outputted")
+		logger.SetOutput(nil)
+	}
+
 	jobs := make(chan web.Job, conf.Workers*5)
 	results := make(chan web.Result, conf.Workers*5)
 
@@ -379,7 +391,7 @@ func main() {
 	}
 
 	// form a worker pool
-	workerPool := worker.NewWorkerPool(jobs, results, conf.Workers, worker.WorkerConf{
+	workerPool := worker.NewWorkerPool(jobs, results, conf.Workers, &worker.WorkerConf{
 		Requests:           conf.Requests,
 		Save:               conf.Save,
 		BlacklistedDomains: conf.BlacklistedDomains,
@@ -388,7 +400,7 @@ func main() {
 			VisitQueue: visitQueueFile,
 			Lock:       &sync.Mutex{},
 		},
-	})
+	}, &statistics)
 	logger.Info("Created a worker pool with %d workers", conf.Workers)
 
 	// set up graceful shutdown
@@ -417,15 +429,15 @@ func main() {
 			for {
 				time.Sleep(time.Second)
 
-				timeSince := time.Since(workerPool.Stats.StartTime).Round(time.Second)
+				timeSince := time.Since(time.Unix(int64(statistics.StartTimeUnix), 0)).Round(time.Second)
 				fmt.Fprintf(os.Stdout, "\r[%s] %d pages visited; %d pages saved; %d matches (%d pages/sec)",
 					timeSince.String(),
-					workerPool.Stats.PagesVisited,
-					workerPool.Stats.PagesSaved,
-					workerPool.Stats.MatchesFound,
-					workerPool.Stats.PagesVisited-lastPagesVisited,
+					statistics.PagesVisited,
+					statistics.PagesSaved,
+					statistics.MatchesFound,
+					statistics.PagesVisited-lastPagesVisited,
 				)
-				lastPagesVisited = workerPool.Stats.PagesVisited
+				lastPagesVisited = statistics.PagesVisited
 			}
 		}()
 	}

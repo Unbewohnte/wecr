@@ -32,10 +32,11 @@ type visited struct {
 
 // Whole worker pool's statistics
 type Statistics struct {
-	PagesVisited uint64
-	MatchesFound uint64
-	PagesSaved   uint64
-	StartTime    time.Time
+	PagesVisited  uint64 `json:"pages_visited"`
+	MatchesFound  uint64 `json:"matches_found"`
+	PagesSaved    uint64 `json:"pages_saved"`
+	StartTimeUnix uint64 `json:"start_time_unix"`
+	Stopped       bool   `json:"stopped"`
 }
 
 // Web-Worker pool
@@ -43,11 +44,11 @@ type Pool struct {
 	workersCount uint
 	workers      []*Worker
 	visited      visited
-	Stats        Statistics
+	Stats        *Statistics
 }
 
 // Create a new worker pool
-func NewWorkerPool(jobs chan web.Job, results chan web.Result, workerCount uint, workerConf WorkerConf) *Pool {
+func NewWorkerPool(jobs chan web.Job, results chan web.Result, workerCount uint, workerConf *WorkerConf, stats *Statistics) *Pool {
 	var newPool Pool = Pool{
 		workersCount: workerCount,
 		workers:      nil,
@@ -55,16 +56,12 @@ func NewWorkerPool(jobs chan web.Job, results chan web.Result, workerCount uint,
 			URLs: nil,
 			Lock: sync.Mutex{},
 		},
-		Stats: Statistics{
-			StartTime:    time.Time{},
-			PagesVisited: 0,
-			MatchesFound: 0,
-		},
+		Stats: stats,
 	}
 
 	var i uint
 	for i = 0; i < workerCount; i++ {
-		newWorker := NewWorker(jobs, results, workerConf, &newPool.visited, &newPool.Stats)
+		newWorker := NewWorker(jobs, results, workerConf, &newPool.visited, newPool.Stats)
 		newPool.workers = append(newPool.workers, &newWorker)
 	}
 
@@ -73,7 +70,8 @@ func NewWorkerPool(jobs chan web.Job, results chan web.Result, workerCount uint,
 
 // Notify all workers in pool to start scraping
 func (p *Pool) Work() {
-	p.Stats.StartTime = time.Now()
+	p.Stats.StartTimeUnix = uint64(time.Now().Unix())
+	p.Stats.Stopped = false
 
 	for _, worker := range p.workers {
 		worker.Stopped = false
@@ -83,6 +81,7 @@ func (p *Pool) Work() {
 
 // Notify all workers in pool to stop scraping
 func (p *Pool) Stop() {
+	p.Stats.Stopped = true
 	for _, worker := range p.workers {
 		worker.Stopped = true
 	}

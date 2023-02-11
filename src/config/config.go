@@ -64,18 +64,24 @@ type Logging struct {
 	LogsFile   string `json:"logs_file"`
 }
 
+type WebDashboard struct {
+	UseDashboard bool   `json:"launch_dashboard"`
+	Port         uint16 `json:"port"`
+}
+
 // Configuration file structure
 type Conf struct {
-	Search             Search   `json:"search"`
-	Requests           Requests `json:"requests"`
-	Depth              uint     `json:"depth"`
-	Workers            uint     `json:"workers"`
-	InitialPages       []string `json:"initial_pages"`
-	AllowedDomains     []string `json:"allowed_domains"`
-	BlacklistedDomains []string `json:"blacklisted_domains"`
-	InMemoryVisitQueue bool     `json:"in_memory_visit_queue"`
-	Save               Save     `json:"save"`
-	Logging            Logging  `json:"logging"`
+	Search             Search       `json:"search"`
+	Requests           Requests     `json:"requests"`
+	Depth              uint         `json:"depth"`
+	Workers            uint         `json:"workers"`
+	InitialPages       []string     `json:"initial_pages"`
+	AllowedDomains     []string     `json:"allowed_domains"`
+	BlacklistedDomains []string     `json:"blacklisted_domains"`
+	InMemoryVisitQueue bool         `json:"in_memory_visit_queue"`
+	Dashboard          WebDashboard `json:"web_dashboard"`
+	Save               Save         `json:"save"`
+	Logging            Logging      `json:"logging"`
 }
 
 // Default configuration file structure
@@ -102,6 +108,10 @@ func Default() *Conf {
 		AllowedDomains:     []string{""},
 		BlacklistedDomains: []string{""},
 		InMemoryVisitQueue: false,
+		Dashboard: WebDashboard{
+			UseDashboard: true,
+			Port:         13370,
+		},
 		Logging: Logging{
 			OutputLogs: true,
 			LogsFile:   "logs.log",

@@ -51,14 +51,14 @@ type WorkerConf struct {
 type Worker struct {
 	Jobs    chan web.Job
 	Results chan web.Result
-	Conf    WorkerConf
+	Conf    *WorkerConf
 	visited *visited
 	stats   *Statistics
 	Stopped bool
 }
 
 // Create a new worker
-func NewWorker(jobs chan web.Job, results chan web.Result, conf WorkerConf, visited *visited, stats *Statistics) Worker {
+func NewWorker(jobs chan web.Job, results chan web.Result, conf *WorkerConf, visited *visited, stats *Statistics) Worker {
 	return Worker{
 		Jobs:    jobs,
 		Results: results,
