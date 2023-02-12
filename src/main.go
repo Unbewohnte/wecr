@@ -40,13 +40,14 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.3.1"
+const version = "v0.3.2"
 
 const (
-	defaultConfigFile           string = "conf.json"
-	defaultOutputFile           string = "output.json"
-	defaultPrettifiedOutputFile string = "extracted_data.txt"
-	defaultVisitQueueFile       string = "visit_queue.tmp"
+	configFilename               string = "conf.json"
+	prettifiedTextOutputFilename string = "extracted_data.txt"
+	visitQueueFilename           string = "visit_queue.tmp"
+	textOutputFilename           string = "found_text.json"
+	emailsOutputFilename         string = "found_emails.json"
 )
 
 var (
@@ -61,13 +62,8 @@ var (
 	)
 
 	configFile = flag.String(
-		"conf", defaultConfigFile,
+		"conf", configFilename,
 		"Configuration file name to create|look for",
-	)
-
-	outputFile = flag.String(
-		"out", defaultOutputFile,
-		"Output file name to output information into",
 	)
 
 	extractDataFilename = flag.String(
@@ -77,7 +73,6 @@ var (
 
 	workingDirectory string
 	configFilePath   string
-	outputFilePath   string
 )
 
 func init() {
@@ -126,20 +121,17 @@ func init() {
 	// extract data if needed
 	if strings.TrimSpace(*extractDataFilename) != "" {
 		logger.Info("Extracting data from %s...", *extractDataFilename)
-		err := utilities.ExtractDataFromOutput(*extractDataFilename, defaultPrettifiedOutputFile, "\n", false)
+		err := utilities.ExtractDataFromOutput(*extractDataFilename, prettifiedTextOutputFilename, "\n", false)
 		if err != nil {
 			logger.Error("Failed to extract data from %s: %s", *extractDataFilename, err)
 			os.Exit(1)
 		}
-		logger.Info("Outputted \"%s\"", defaultPrettifiedOutputFile)
+		logger.Info("Outputted \"%s\"", prettifiedTextOutputFilename)
 		os.Exit(0)
 	}
 
 	// global path to configuration file
 	configFilePath = filepath.Join(workingDirectory, *configFile)
-
-	// global path to output file
-	outputFilePath = filepath.Join(workingDirectory, *outputFile)
 }
 
 func main() {
@@ -249,7 +241,7 @@ func main() {
 		logger.Warning("User agent is not set. Forced to \"%s\"", conf.Requests.UserAgent)
 	}
 
-	// create output directories and corresponding specialized ones
+	// create output directory and corresponding specialized ones, text output files
 	if !filepath.IsAbs(conf.Save.OutputDir) {
 		conf.Save.OutputDir = filepath.Join(workingDirectory, conf.Save.OutputDir)
 	}
@@ -289,6 +281,20 @@ func main() {
 		return
 	}
 
+	textOutputFile, err := os.Create(filepath.Join(conf.Save.OutputDir, textOutputFilename))
+	if err != nil {
+		logger.Error("Failed to create text output file: %s", err)
+		return
+	}
+	defer textOutputFile.Close()
+
+	emailsOutputFile, err := os.Create(filepath.Join(conf.Save.OutputDir, emailsOutputFilename))
+	if err != nil {
+		logger.Error("Failed to create email addresses output file: %s", err)
+		return
+	}
+	defer emailsOutputFile.Close()
+
 	switch conf.Search.Query {
 	case config.QueryEmail:
 		logger.Info("Looking for email addresses")
@@ -314,14 +320,6 @@ func main() {
 			logger.Info("Looking for text matches (%s)", conf.Search.Query)
 		}
 	}
-
-	// create output file
-	outputFile, err := os.Create(outputFilePath)
-	if err != nil {
-		logger.Error("Failed to create output file: %s", err)
-		return
-	}
-	defer outputFile.Close()
 
 	// create logs if needed
 	if conf.Logging.OutputLogs {
@@ -354,14 +352,14 @@ func main() {
 	var visitQueueFile *os.File = nil
 	if !conf.InMemoryVisitQueue {
 		var err error
-		visitQueueFile, err = os.Create(filepath.Join(workingDirectory, defaultVisitQueueFile))
+		visitQueueFile, err = os.Create(filepath.Join(workingDirectory, visitQueueFilename))
 		if err != nil {
 			logger.Error("Could not create visit queue temporary file: %s", err)
 			return
 		}
 		defer func() {
 			visitQueueFile.Close()
-			os.Remove(filepath.Join(workingDirectory, defaultVisitQueueFile))
+			os.Remove(filepath.Join(workingDirectory, visitQueueFilename))
 		}()
 	}
 
@@ -443,11 +441,19 @@ func main() {
 		}()
 	}
 
-	// get text results and write them to the output file (files are handled by each worker separately)
+	// get text text results and write it to the output file (found files are handled by each worker separately)
+	var outputFile *os.File
 	for {
 		result, ok := <-results
 		if !ok {
 			break
+		}
+
+		// as it is possible to change configuration "on the fly" - it's better to not mess up different outputs
+		if result.Search.Query == config.QueryEmail {
+			outputFile = emailsOutputFile
+		} else {
+			outputFile = textOutputFile
 		}
 
 		// each entry in output file is a self-standing JSON object

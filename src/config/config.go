@@ -47,9 +47,8 @@ type Search struct {
 }
 
 type Save struct {
-	OutputDir  string `json:"output_dir"`
-	OutputFile string `json:"output_file"`
-	SavePages  bool   `json:"save_pages"`
+	OutputDir string `json:"output_dir"`
+	SavePages bool   `json:"save_pages"`
 }
 
 type Requests struct {
@@ -92,9 +91,8 @@ func Default() *Conf {
 			Query:    "",
 		},
 		Save: Save{
-			OutputDir:  "scraped",
-			SavePages:  false,
-			OutputFile: "scraped.json",
+			OutputDir: "scraped",
+			SavePages: false,
 		},
 		Requests: Requests{
 			UserAgent:             "",

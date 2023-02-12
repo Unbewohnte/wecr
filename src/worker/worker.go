@@ -375,7 +375,6 @@ func (w *Worker) Work() {
 					}
 					logger.Info("Found matches: %+v", matches)
 					w.stats.MatchesFound += uint64(len(matches))
-
 					savePage = true
 				}
 			case false:
@@ -384,11 +383,10 @@ func (w *Worker) Work() {
 					w.Results <- web.Result{
 						PageURL: job.URL,
 						Search:  job.Search,
-						Data:    nil,
+						Data:    []string{job.Search.Query},
 					}
 					logger.Info("Found \"%s\" on page", job.Search.Query)
 					w.stats.MatchesFound++
-
 					savePage = true
 				}
 			}
