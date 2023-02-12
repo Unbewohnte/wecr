@@ -29,55 +29,126 @@
     <div class="container">
         <h1>Dashboard</h1>
 
-        <h2>Statistics</h2>
-        <div id="statistics">
-            <ol class="list-group list-group-numbered">
-                <li class="list-group-item d-flex justify-content-between align-items-start">
-                    <div class="ms-2 me-auto">
-                        <div class="fw-bold">Pages visited</div>
-                    </div>
-                    <span class="badge bg-primary rounded-pill" id="pages_visited">0</span>
-                </li>
-                <li class="list-group-item d-flex justify-content-between align-items-start">
-                    <div class="ms-2 me-auto">
-                        <div class="fw-bold">Matches found</div>
-                    </div>
-                    <span class="badge bg-primary rounded-pill" id="matches_found">0</span>
-                </li>
-                <li class="list-group-item d-flex justify-content-between align-items-start">
-                    <div class="ms-2 me-auto">
-                        <div class="fw-bold">Pages saved</div>
-                    </div>
-                    <span class="badge bg-primary rounded-pill" id="pages_saved">0</span>
-                </li>
-                <li class="list-group-item d-flex justify-content-between align-items-start">
-                    <div class="ms-2 me-auto">
-                        <div class="fw-bold">Start time</div>
-                    </div>
-                    <span class="badge bg-primary rounded-pill" id="start_time_unix">0</span>
-                </li>
-                <li class="list-group-item d-flex justify-content-between align-items-start">
-                    <div class="ms-2 me-auto">
-                        <div class="fw-bold">Stopped</div>
-                    </div>
-                    <span class="badge bg-primary rounded-pill" id="stopped">false</span>
-                </li>
-            </ol>
+        <div style="height: 3rem;"></div>
+
+
+        <div class="container">
+            <h2>Statistics</h2>
+            <div id="statistics">
+                <ol class="list-group list-group-numbered">
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">Pages visited</div>
+                        </div>
+                        <span class="badge bg-primary rounded-pill" id="pages_visited">0</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">Matches found</div>
+                        </div>
+                        <span class="badge bg-primary rounded-pill" id="matches_found">0</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">Pages saved</div>
+                        </div>
+                        <span class="badge bg-primary rounded-pill" id="pages_saved">0</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">Start time</div>
+                        </div>
+                        <span class="badge bg-primary rounded-pill" id="start_time_unix">0</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">Stopped</div>
+                        </div>
+                        <span class="badge bg-primary rounded-pill" id="stopped">false</span>
+                    </li>
+                </ol>
+            </div>
         </div>
 
-        <!-- <h2>Configuration</h2>
-        <pre id="configuration"></pre> -->
+        <div style="height: 3rem;"></div>
+
+        <div class="container">
+            <h2>Configuration</h2>
+            <div>
+                <b>Make runtime changes to configuration</b>
+                <table class="table table-borderless">
+                    <tr>
+                        <th>Key</th>
+                        <th>Value</th>
+                    </tr>
+                    <tr>
+                        <th>Query</th>
+                        <th>
+                            <input type="text" id="conf_query">
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Is regexp</th>
+                        <th>
+                            <input type="text" id="conf_is_regexp">
+                        </th>
+                    </tr>
+                </table>
+                <button class="btn btn-primary" id="config_apply_button">
+                    Apply
+                </button>
+            </div>
+
+            <div style="height: 3rem;"></div>
+
+            <pre id="conf_output"></pre>
+        </div>
     </div>
 </body>
 
 <script>
     window.onload = function () {
-        let confOutput = document.getElementById("configuration");
+        let confOutput = document.getElementById("conf_output");
         let pagesVisitedOut = document.getElementById("pages_visited");
         let matchesFoundOut = document.getElementById("matches_found");
         let pagesSavedOut = document.getElementById("pages_saved");
         let startTimeOut = document.getElementById("start_time_unix");
         let stoppedOut = document.getElementById("stopped");
+        let applyConfButton = document.getElementById("config_apply_button");
+        let confQuery = document.getElementById("conf_query");
+        let confIsRegexp = document.getElementById("conf_is_regexp");
+
+        applyConfButton.addEventListener("click", (event) => {
+            let query = String(confQuery.value);
+
+            if (confIsRegexp.value === "0") {
+                isRegexp = false;
+            } else if (confIsRegexp.value === "1") {
+                isRegexp = true;
+            };
+            if (confIsRegexp.value === "false") {
+                isRegexp = false;
+            } else if (confIsRegexp.value === "true") {
+                isRegexp = true;
+            };
+
+            let newConf = {
+                "search": {
+                    "is_regexp": isRegexp,
+                    "query": query,
+                },
+            };
+
+            console.log(newConf);
+
+            fetch("/conf", {
+                method: "POST",
+                headers: {
+                    "Content-type": "application/json",
+                },
+                body: JSON.stringify(newConf),
+            });
+        });
 
         const interval = setInterval(function () {
             // update statistics
@@ -90,13 +161,22 @@
                     startTimeOut.innerText = new Date(1000 * statistics.start_time_unix);
                     stoppedOut.innerText = statistics.stopped;
                 });
-            // // update config just in case
-            // fetch("/conf")
-            //     .then((response) => response.text())
-            //     .then((response_text) => JSON.parse(response_text))
-            //     .then((config) => {
-            //         confOutput.innerText = "Configuration: \n" + JSON.stringify(config);
-            //     });
+            // update config
+            fetch("/conf")
+                .then((response) => response.text())
+                .then((config) => {
+                    // "print" whole configuration
+                    confOutput.innerText = config;
+
+                    // update values in the change table if they're empty
+                    let confJSON = JSON.parse(config);
+                    if (confQuery.value == "") {
+                        confQuery.value = confJSON.search.query;
+                    }
+                    if (confIsRegexp.value == "") {
+                        confIsRegexp.value = confJSON.search.is_regexp;
+                    }
+                });
         }, 650);
     }();
 </script>

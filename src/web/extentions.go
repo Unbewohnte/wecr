@@ -119,7 +119,6 @@ var DocumentExtentions = []string{
 	".pl",
 	".lua",
 	".kt",
-	".js",
 	".rb",
 	".asm",
 	".rar",

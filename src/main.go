@@ -40,7 +40,7 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.3.0"
+const version = "v0.3.1"
 
 const (
 	defaultConfigFile           string = "conf.json"
@@ -392,8 +392,9 @@ func main() {
 
 	// form a worker pool
 	workerPool := worker.NewWorkerPool(jobs, results, conf.Workers, &worker.WorkerConf{
-		Requests:           conf.Requests,
-		Save:               conf.Save,
+		Search:             &conf.Search,
+		Requests:           &conf.Requests,
+		Save:               &conf.Save,
 		BlacklistedDomains: conf.BlacklistedDomains,
 		AllowedDomains:     conf.AllowedDomains,
 		VisitQueue: worker.VisitQueue{

@@ -40,8 +40,9 @@ type VisitQueue struct {
 
 // Worker configuration
 type WorkerConf struct {
-	Requests           config.Requests
-	Save               config.Save
+	Search             *config.Search
+	Requests           *config.Requests
+	Save               *config.Save
 	BlacklistedDomains []string
 	AllowedDomains     []string
 	VisitQueue         VisitQueue
@@ -236,7 +237,6 @@ func (w *Worker) Work() {
 
 		// find links
 		pageLinks := web.FindPageLinks(pageData, pageURL)
-
 		go func() {
 			if job.Depth > 1 {
 				// decrement depth and add new jobs
@@ -249,7 +249,7 @@ func (w *Worker) Work() {
 						if link != job.URL {
 							err = queue.InsertNewJob(w.Conf.VisitQueue.VisitQueue, web.Job{
 								URL:    link,
-								Search: job.Search,
+								Search: *w.Conf.Search,
 								Depth:  job.Depth,
 							})
 							if err != nil {
@@ -265,7 +265,7 @@ func (w *Worker) Work() {
 						if link != job.URL {
 							w.Jobs <- web.Job{
 								URL:    link,
-								Search: job.Search,
+								Search: *w.Conf.Search,
 								Depth:  job.Depth,
 							}
 						}

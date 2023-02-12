@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"io/fs"
 	"net/http"
 	"unbewohnte/wecr/config"
+	"unbewohnte/wecr/logger"
 	"unbewohnte/wecr/worker"
 )
 
@@ -27,6 +29,7 @@ func NewDashboard(port uint16, webConf *config.Conf, statistics *worker.Statisti
 	mux := http.NewServeMux()
 	res, err := fs.Sub(resFS, "res")
 	if err != nil {
+		logger.Error("Failed to Sub embedded dashboard FS: %s", err)
 		return nil
 	}
 
@@ -34,6 +37,7 @@ func NewDashboard(port uint16, webConf *config.Conf, statistics *worker.Statisti
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		template, err := template.ParseFS(res, "*.html")
 		if err != nil {
+			logger.Error("Failed to parse embedded dashboard FS: %s", err)
 			return
 		}
 
@@ -44,6 +48,7 @@ func NewDashboard(port uint16, webConf *config.Conf, statistics *worker.Statisti
 		jsonStats, err := json.MarshalIndent(statistics, "", " ")
 		if err != nil {
 			http.Error(w, "Failed to marshal statistics", http.StatusInternalServerError)
+			logger.Error("Failed to marshal stats to send to the dashboard: %s", err)
 			return
 		}
 		w.Header().Add("Content-type", "application/json")
@@ -51,13 +56,42 @@ func NewDashboard(port uint16, webConf *config.Conf, statistics *worker.Statisti
 	})
 
 	mux.HandleFunc("/conf", func(w http.ResponseWriter, req *http.Request) {
-		jsonConf, err := json.MarshalIndent(webConf, "", " ")
-		if err != nil {
-			http.Error(w, "Failed to marshal configuration", http.StatusInternalServerError)
-			return
+		switch req.Method {
+		case http.MethodPost:
+			var newConfig config.Conf
+
+			defer req.Body.Close()
+			newConfigData, err := io.ReadAll(req.Body)
+			if err != nil {
+				http.Error(w, "Failed to read request body", http.StatusInternalServerError)
+				logger.Error("Failed to read new configuration from dashboard request: %s", err)
+				return
+			}
+			err = json.Unmarshal(newConfigData, &newConfig)
+			if err != nil {
+				http.Error(w, "Failed to unmarshal new configuration", http.StatusInternalServerError)
+				logger.Error("Failed to unmarshal new configuration from dashboard UI: %s", err)
+				return
+			}
+
+			// DO NOT blindly replace global configuration. Manually check and replace values
+			webConf.Search.IsRegexp = newConfig.Search.IsRegexp
+			if len(newConfig.Search.Query) != 0 {
+				webConf.Search.Query = newConfig.Search.Query
+			}
+
+			webConf.Logging.OutputLogs = newConfig.Logging.OutputLogs
+
+		default:
+			jsonConf, err := json.MarshalIndent(webConf, "", " ")
+			if err != nil {
+				http.Error(w, "Failed to marshal configuration", http.StatusInternalServerError)
+				logger.Error("Failed to marshal current configuration to send to the dashboard UI: %s", err)
+				return
+			}
+			w.Header().Add("Content-type", "application/json")
+			w.Write(jsonConf)
 		}
-		w.Header().Add("Content-type", "application/json")
-		w.Write(jsonConf)
 	})
 
 	server := &http.Server{
