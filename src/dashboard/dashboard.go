@@ -43,7 +43,7 @@ type PageData struct {
 	Stats worker.Statistics
 }
 
-func NewDashboard(port uint16, webConf *config.Conf, statistics *worker.Statistics) *Dashboard {
+func NewDashboard(port uint16, webConf *config.Conf, pool *worker.Pool) *Dashboard {
 	mux := http.NewServeMux()
 	res, err := fs.Sub(resFS, "res")
 	if err != nil {
@@ -63,7 +63,7 @@ func NewDashboard(port uint16, webConf *config.Conf, statistics *worker.Statisti
 	})
 
 	mux.HandleFunc("/stats", func(w http.ResponseWriter, req *http.Request) {
-		jsonStats, err := json.MarshalIndent(statistics, "", " ")
+		jsonStats, err := json.MarshalIndent(pool.Stats, "", " ")
 		if err != nil {
 			http.Error(w, "Failed to marshal statistics", http.StatusInternalServerError)
 			logger.Error("Failed to marshal stats to send to the dashboard: %s", err)

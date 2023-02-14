@@ -156,17 +156,6 @@ func main() {
 	}
 	logger.Info("Successfully opened configuration file")
 
-	// Prepare global statistics variable
-	statistics := worker.Statistics{}
-
-	// open dashboard if needed
-	var board *dashboard.Dashboard = nil
-	if conf.Dashboard.UseDashboard {
-		board = dashboard.NewDashboard(conf.Dashboard.Port, conf, &statistics)
-		go board.Launch()
-		logger.Info("Launched dashboard at http://localhost:%d", conf.Dashboard.Port)
-	}
-
 	// sanitize and correct inputs
 	if len(conf.InitialPages) == 0 {
 		logger.Error("No initial page URLs have been set")
@@ -344,9 +333,6 @@ func main() {
 		logger.SetOutput(nil)
 	}
 
-	jobs := make(chan web.Job, conf.Workers*5)
-	results := make(chan web.Result, conf.Workers*5)
-
 	// create visit queue file if not turned off
 	var visitQueueFile *os.File = nil
 	if !conf.InMemoryVisitQueue {
@@ -363,6 +349,7 @@ func main() {
 	}
 
 	// create initial jobs
+	initialJobs := make(chan web.Job, conf.Workers*5)
 	if !conf.InMemoryVisitQueue {
 		for _, initialPage := range conf.InitialPages {
 			var newJob web.Job = web.Job{
@@ -379,7 +366,7 @@ func main() {
 		visitQueueFile.Seek(0, io.SeekStart)
 	} else {
 		for _, initialPage := range conf.InitialPages {
-			jobs <- web.Job{
+			initialJobs <- web.Job{
 				URL:    initialPage,
 				Search: conf.Search,
 				Depth:  conf.Depth,
@@ -387,8 +374,11 @@ func main() {
 		}
 	}
 
+	// Prepare global statistics variable
+	statistics := worker.Statistics{}
+
 	// form a worker pool
-	workerPool := worker.NewWorkerPool(jobs, results, conf.Workers, &worker.WorkerConf{
+	workerPool := worker.NewWorkerPool(initialJobs, conf.Workers, &worker.WorkerConf{
 		Search:             &conf.Search,
 		Requests:           &conf.Requests,
 		Save:               &conf.Save,
@@ -402,6 +392,14 @@ func main() {
 		TextOutput:   textOutputFile,
 	}, &statistics)
 	logger.Info("Created a worker pool with %d workers", conf.Workers)
+
+	// open dashboard if needed
+	var board *dashboard.Dashboard = nil
+	if conf.Dashboard.UseDashboard {
+		board = dashboard.NewDashboard(conf.Dashboard.Port, conf, workerPool)
+		go board.Launch()
+		logger.Info("Launched dashboard at http://localhost:%d", conf.Dashboard.Port)
+	}
 
 	// launch concurrent scraping !
 	workerPool.Work()
@@ -436,7 +434,4 @@ func main() {
 
 	// stop workers
 	workerPool.Stop()
-
-	// close results channel
-	close(results)
 }

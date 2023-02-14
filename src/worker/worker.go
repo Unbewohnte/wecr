@@ -62,7 +62,7 @@ type Worker struct {
 }
 
 // Create a new worker
-func NewWorker(jobs chan web.Job, results chan web.Result, conf *WorkerConf, visited *visited, stats *Statistics) Worker {
+func NewWorker(jobs chan web.Job, conf *WorkerConf, visited *visited, stats *Statistics) Worker {
 	return Worker{
 		Jobs:    jobs,
 		Conf:    conf,

@@ -48,7 +48,7 @@ type Pool struct {
 }
 
 // Create a new worker pool
-func NewWorkerPool(jobs chan web.Job, results chan web.Result, workerCount uint, workerConf *WorkerConf, stats *Statistics) *Pool {
+func NewWorkerPool(initialJobs chan web.Job, workerCount uint, workerConf *WorkerConf, stats *Statistics) *Pool {
 	var newPool Pool = Pool{
 		workersCount: workerCount,
 		workers:      nil,
@@ -61,7 +61,7 @@ func NewWorkerPool(jobs chan web.Job, results chan web.Result, workerCount uint,
 
 	var i uint
 	for i = 0; i < workerCount; i++ {
-		newWorker := NewWorker(jobs, results, workerConf, &newPool.visited, newPool.Stats)
+		newWorker := NewWorker(initialJobs, workerConf, &newPool.visited, newPool.Stats)
 		newPool.workers = append(newPool.workers, &newWorker)
 	}
 
