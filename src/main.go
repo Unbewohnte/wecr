@@ -19,7 +19,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -40,7 +39,7 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.3.2"
+const version = "v0.3.3"
 
 const (
 	configFilename               string = "conf.json"
@@ -68,7 +67,7 @@ var (
 
 	extractDataFilename = flag.String(
 		"extractData", "",
-		"Set filename for output JSON file and extract data from it, put each entry nicely on a new line in a new file, then exit",
+		"Specify previously outputted JSON file and extract data from it, put each entry nicely on a new line in a new file, exit afterwards",
 	)
 
 	workingDirectory string
@@ -321,7 +320,7 @@ func main() {
 		}
 	}
 
-	// create logs if needed
+	// create and redirect logs if needed
 	if conf.Logging.OutputLogs {
 		if conf.Logging.LogsFile != "" {
 			// output logs to a file
@@ -399,22 +398,10 @@ func main() {
 			VisitQueue: visitQueueFile,
 			Lock:       &sync.Mutex{},
 		},
+		EmailsOutput: emailsOutputFile,
+		TextOutput:   textOutputFile,
 	}, &statistics)
 	logger.Info("Created a worker pool with %d workers", conf.Workers)
-
-	// set up graceful shutdown
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
-	go func() {
-		<-sig
-		logger.Info("Received interrupt signal. Exiting...")
-
-		// stop workers
-		workerPool.Stop()
-
-		// close results channel
-		close(results)
-	}()
 
 	// launch concurrent scraping !
 	workerPool.Work()
@@ -441,27 +428,15 @@ func main() {
 		}()
 	}
 
-	// get text text results and write it to the output file (found files are handled by each worker separately)
-	var outputFile *os.File
-	for {
-		result, ok := <-results
-		if !ok {
-			break
-		}
+	// set up graceful shutdown
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt)
+	<-sig
+	logger.Info("Received interrupt signal. Exiting...")
 
-		// as it is possible to change configuration "on the fly" - it's better to not mess up different outputs
-		if result.Search.Query == config.QueryEmail {
-			outputFile = emailsOutputFile
-		} else {
-			outputFile = textOutputFile
-		}
+	// stop workers
+	workerPool.Stop()
 
-		// each entry in output file is a self-standing JSON object
-		entryBytes, err := json.MarshalIndent(result, " ", "\t")
-		if err != nil {
-			continue
-		}
-		outputFile.Write(entryBytes)
-		outputFile.Write([]byte("\n"))
-	}
+	// close results channel
+	close(results)
 }

@@ -19,7 +19,9 @@
 package worker
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path"
@@ -46,12 +48,13 @@ type WorkerConf struct {
 	BlacklistedDomains []string
 	AllowedDomains     []string
 	VisitQueue         VisitQueue
+	TextOutput         io.Writer
+	EmailsOutput       io.Writer
 }
 
 // Web worker
 type Worker struct {
 	Jobs    chan web.Job
-	Results chan web.Result
 	Conf    *WorkerConf
 	visited *visited
 	stats   *Statistics
@@ -62,7 +65,6 @@ type Worker struct {
 func NewWorker(jobs chan web.Job, results chan web.Result, conf *WorkerConf, visited *visited, stats *Statistics) Worker {
 	return Worker{
 		Jobs:    jobs,
-		Results: results,
 		Conf:    conf,
 		visited: visited,
 		stats:   stats,
@@ -136,6 +138,25 @@ func (w *Worker) savePage(baseURL *url.URL, pageData []byte) {
 		logger.Info("Saved \"%s\"", pageName)
 		w.stats.PagesSaved++
 	}
+}
+
+func (w *Worker) saveResult(result web.Result) {
+	// write result to the output file
+
+	var output io.Writer
+	if result.Search.Query == config.QueryEmail {
+		output = w.Conf.EmailsOutput
+	} else {
+		output = w.Conf.TextOutput
+	}
+
+	// each entry in output file is a self-standing JSON object
+	entryBytes, err := json.MarshalIndent(result, " ", "\t")
+	if err != nil {
+		return
+	}
+	output.Write(entryBytes)
+	output.Write([]byte("\n"))
 }
 
 // Launch scraping process on this worker
@@ -319,11 +340,11 @@ func (w *Worker) Work() {
 			// search for email
 			emailAddresses := web.FindPageEmailsWithCheck(pageData)
 			if len(emailAddresses) > 0 {
-				w.Results <- web.Result{
+				w.saveResult(web.Result{
 					PageURL: job.URL,
 					Search:  job.Search,
 					Data:    emailAddresses,
-				}
+				})
 				w.stats.MatchesFound += uint64(len(emailAddresses))
 				savePage = true
 			}
@@ -339,19 +360,19 @@ func (w *Worker) Work() {
 			contentLinks = append(contentLinks, web.FindPageDocuments(pageData, pageURL)...)
 			w.saveContent(contentLinks, pageURL)
 
-			// email
-			emailAddresses := web.FindPageEmailsWithCheck(pageData)
-			if len(emailAddresses) > 0 {
-				w.Results <- web.Result{
-					PageURL: job.URL,
-					Search:  job.Search,
-					Data:    emailAddresses,
-				}
-				w.stats.MatchesFound += uint64(len(emailAddresses))
+			if len(contentLinks) > 0 {
 				savePage = true
 			}
 
-			if len(contentLinks) > 0 || len(emailAddresses) > 0 {
+			// email
+			emailAddresses := web.FindPageEmailsWithCheck(pageData)
+			if len(emailAddresses) > 0 {
+				w.saveResult(web.Result{
+					PageURL: job.URL,
+					Search:  job.Search,
+					Data:    emailAddresses,
+				})
+				w.stats.MatchesFound += uint64(len(emailAddresses))
 				savePage = true
 			}
 
@@ -368,11 +389,11 @@ func (w *Worker) Work() {
 
 				matches := web.FindPageRegexp(re, pageData)
 				if len(matches) > 0 {
-					w.Results <- web.Result{
+					w.saveResult(web.Result{
 						PageURL: job.URL,
 						Search:  job.Search,
 						Data:    matches,
-					}
+					})
 					logger.Info("Found matches: %+v", matches)
 					w.stats.MatchesFound += uint64(len(matches))
 					savePage = true
@@ -380,11 +401,11 @@ func (w *Worker) Work() {
 			case false:
 				// just text
 				if web.IsTextOnPage(job.Search.Query, true, pageData) {
-					w.Results <- web.Result{
+					w.saveResult(web.Result{
 						PageURL: job.URL,
 						Search:  job.Search,
 						Data:    []string{job.Search.Query},
-					}
+					})
 					logger.Info("Found \"%s\" on page", job.Search.Query)
 					w.stats.MatchesFound++
 					savePage = true

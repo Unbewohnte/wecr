@@ -36,8 +36,6 @@ var tagSrcRegexp *regexp.Regexp = regexp.MustCompile(`(?i)(src)[\s]*=[\s]*("|')(
 
 var emailRegexp *regexp.Regexp = regexp.MustCompile(`[A-Za-z0-9._%+\-!%&?~^#$]+@[A-Za-z0-9.\-]+\.[a-zA-Z]{2,4}`)
 
-// var emailRegexp *regexp.Regexp = regexp.MustCompile("[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*")
-
 // Fix relative link and construct an absolute one. Does nothing if the URL already looks alright
 func ResolveLink(url *url.URL, fromHost string) string {
 	if !url.IsAbs() {
