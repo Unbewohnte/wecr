@@ -68,6 +68,9 @@
                     </li>
                 </ol>
             </div>
+
+            <button class="btn btn-primary" id="btn_stop">Stop</button>
+            <button class="btn btn-primary" id="btn_resume" disabled>Resume</button>
         </div>
 
         <div style="height: 3rem;"></div>
@@ -117,6 +120,44 @@
         let applyConfButton = document.getElementById("config_apply_button");
         let confQuery = document.getElementById("conf_query");
         let confIsRegexp = document.getElementById("conf_is_regexp");
+        let buttonStop = document.getElementById("btn_stop");
+        let buttonResume = document.getElementById("btn_resume");
+
+        buttonStop.addEventListener("click", (event) => {
+            buttonStop.disabled = true;
+            buttonResume.disabled = false;
+
+            // stop worker pool
+            let signal = {
+                "stop": true,
+            };
+
+            fetch("/stop", {
+                method: "POST",
+                headers: {
+                    "Content-type": "application/json",
+                },
+                body: JSON.stringify(signal),
+            });
+        });
+
+        buttonResume.addEventListener("click", (event) => {
+            buttonResume.disabled = true;
+            buttonStop.disabled = false;
+
+            // resume worker pool's work
+            let signal = {
+                "stop": false,
+            };
+
+            fetch("/stop", {
+                method: "POST",
+                headers: {
+                    "Content-type": "application/json",
+                },
+                body: JSON.stringify(signal),
+            });
+        });
 
         applyConfButton.addEventListener("click", (event) => {
             let query = String(confQuery.value);
@@ -138,8 +179,6 @@
                     "query": query,
                 },
             };
-
-            console.log(newConf);
 
             fetch("/conf", {
                 method: "POST",

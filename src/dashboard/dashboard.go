@@ -43,6 +43,10 @@ type PageData struct {
 	Stats worker.Statistics
 }
 
+type PoolStop struct {
+	Stop bool `json:"stop"`
+}
+
 func NewDashboard(port uint16, webConf *config.Conf, pool *worker.Pool) *Dashboard {
 	mux := http.NewServeMux()
 	res, err := fs.Sub(resFS, "res")
@@ -52,6 +56,7 @@ func NewDashboard(port uint16, webConf *config.Conf, pool *worker.Pool) *Dashboa
 	}
 
 	mux.Handle("/static/", http.FileServer(http.FS(res)))
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		template, err := template.ParseFS(res, "*.html")
 		if err != nil {
@@ -60,6 +65,35 @@ func NewDashboard(port uint16, webConf *config.Conf, pool *worker.Pool) *Dashboa
 		}
 
 		template.ExecuteTemplate(w, "index.html", nil)
+	})
+
+	mux.HandleFunc("/stop", func(w http.ResponseWriter, req *http.Request) {
+		var stop PoolStop
+
+		requestBody, err := io.ReadAll(req.Body)
+		if err != nil {
+			http.Error(w, "Failed to read request body", http.StatusInternalServerError)
+			logger.Error("Failed to read stop|resume signal from dashboard request: %s", err)
+			return
+		}
+		defer req.Body.Close()
+
+		err = json.Unmarshal(requestBody, &stop)
+		if err != nil {
+			http.Error(w, "Failed to unmarshal stop|resume signal", http.StatusInternalServerError)
+			logger.Error("Failed to unmarshal stop|resume signal from dashboard UI: %s", err)
+			return
+		}
+
+		if stop.Stop {
+			// stop worker pool
+			pool.Stop()
+			logger.Info("Stopped worker pool via request from dashboard")
+		} else {
+			// resume work
+			pool.Work()
+			logger.Info("Resumed work via request from dashboard")
+		}
 	})
 
 	mux.HandleFunc("/stats", func(w http.ResponseWriter, req *http.Request) {
