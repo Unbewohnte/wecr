@@ -37,25 +37,27 @@ var tagSrcRegexp *regexp.Regexp = regexp.MustCompile(`(?i)(src)[\s]*=[\s]*("|')(
 var emailRegexp *regexp.Regexp = regexp.MustCompile(`[A-Za-z0-9._%+\-!%&?~^#$]+@[A-Za-z0-9.\-]+\.[a-zA-Z]{2,4}`)
 
 // Fix relative link and construct an absolute one. Does nothing if the URL already looks alright
-func ResolveLink(url *url.URL, fromHost string) string {
-	if !url.IsAbs() {
-		if url.Scheme == "" {
+func ResolveLink(link url.URL, fromHost string) url.URL {
+	var resolvedURL url.URL = link
+
+	if !resolvedURL.IsAbs() {
+		if resolvedURL.Scheme == "" {
 			// add scheme
-			url.Scheme = "http"
+			resolvedURL.Scheme = "https"
 		}
 
-		if url.Host == "" {
+		if resolvedURL.Host == "" {
 			// add host
-			url.Host = fromHost
+			resolvedURL.Host = fromHost
 		}
 	}
 
-	return url.String()
+	return resolvedURL
 }
 
-// Find all links on page that are specified in <a> tag
-func FindPageLinks(pageBody []byte, from *url.URL) []string {
-	var urls []string
+// Find all links on page that are specified in href attribute. Do not resolve links. Return URLs as they are on the page
+func FindPageLinksDontResolve(pageBody []byte) []url.URL {
+	var urls []url.URL
 
 	for _, match := range tagHrefRegexp.FindAllString(string(pageBody), -1) {
 		var linkStartIndex int
@@ -88,9 +90,69 @@ func FindPageLinks(pageBody []byte, from *url.URL) []string {
 			continue
 		}
 
-		urls = append(urls, ResolveLink(link, from.Host))
+		urls = append(urls, *link)
 	}
 
+	return urls
+}
+
+// Find all links on page that are specified in href attribute
+func FindPageLinks(pageBody []byte, from url.URL) []url.URL {
+	urls := FindPageLinksDontResolve(pageBody)
+	for index := 0; index < len(urls); index++ {
+		urls[index] = ResolveLink(urls[index], from.Host)
+	}
+
+	return urls
+}
+
+// Find all links on page that are specified in "src" attribute. Do not resolve ULRs, return them as they are on page
+func FindPageSrcLinksDontResolve(pageBody []byte) []url.URL {
+	var urls []url.URL
+
+	for _, match := range tagSrcRegexp.FindAllString(string(pageBody), -1) {
+		var linkStartIndex int
+		var linkEndIndex int
+
+		linkStartIndex = strings.Index(match, "\"")
+		if linkStartIndex == -1 {
+			linkStartIndex = strings.Index(match, "'")
+			if linkStartIndex == -1 {
+				continue
+			}
+
+			linkEndIndex = strings.LastIndex(match, "'")
+			if linkEndIndex == -1 {
+				continue
+			}
+		} else {
+			linkEndIndex = strings.LastIndex(match, "\"")
+			if linkEndIndex == -1 {
+				continue
+			}
+		}
+
+		if linkEndIndex <= linkStartIndex+1 {
+			continue
+		}
+
+		link, err := url.Parse(match[linkStartIndex+1 : linkEndIndex])
+		if err != nil {
+			continue
+		}
+
+		urls = append(urls, *link)
+	}
+
+	return urls
+}
+
+// Find all links on page that are specified in "src" attribute
+func FindPageSrcLinks(pageBody []byte, from url.URL) []url.URL {
+	urls := FindPageSrcLinksDontResolve(pageBody)
+	for index := 0; index < len(urls); index++ {
+		urls[index] = ResolveLink(urls[index], from.Host)
+	}
 	return urls
 }
 

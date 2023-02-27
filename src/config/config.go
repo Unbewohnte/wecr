@@ -31,6 +31,7 @@ const (
 	QueryEmail      string = "email"
 	QueryDocuments  string = "documents"
 	QueryEverything string = "everything"
+	QueryArchive    string = "archive"
 )
 
 const (

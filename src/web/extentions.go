@@ -18,6 +18,8 @@
 
 package web
 
+import "strings"
+
 var AudioExtentions = []string{
 	".3gp",
 	".aa",
@@ -133,4 +135,40 @@ var DocumentExtentions = []string{
 	".woff",
 	".otf",
 	".exif",
+}
+
+func HasImageExtention(urlPath string) bool {
+	for _, extention := range ImageExtentions {
+		if strings.HasSuffix(urlPath, extention) {
+			return true
+		}
+	}
+	return false
+}
+
+func HasDocumentExtention(urlPath string) bool {
+	for _, extention := range DocumentExtentions {
+		if strings.HasSuffix(urlPath, extention) {
+			return true
+		}
+	}
+	return false
+}
+
+func HasVideoExtention(urlPath string) bool {
+	for _, extention := range VideoExtentions {
+		if strings.HasSuffix(urlPath, extention) {
+			return true
+		}
+	}
+	return false
+}
+
+func HasAudioExtention(urlPath string) bool {
+	for _, extention := range AudioExtentions {
+		if strings.HasSuffix(urlPath, extention) {
+			return true
+		}
+	}
+	return false
 }

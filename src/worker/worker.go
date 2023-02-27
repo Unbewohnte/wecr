@@ -19,6 +19,7 @@
 package worker
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,6 +28,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 	"unbewohnte/wecr/config"
@@ -72,8 +74,8 @@ func NewWorker(jobs chan web.Job, conf *WorkerConf, visited *visited, stats *Sta
 	}
 }
 
-func (w *Worker) saveContent(links []string, pageURL *url.URL) {
-	var alreadyProcessedUrls []string
+func (w *Worker) saveContent(links []url.URL, pageURL *url.URL) {
+	var alreadyProcessedUrls []url.URL
 	for count, link := range links {
 		// check if this URL has been processed already
 		var skip bool = false
@@ -91,29 +93,29 @@ func (w *Worker) saveContent(links []string, pageURL *url.URL) {
 		}
 		alreadyProcessedUrls = append(alreadyProcessedUrls, link)
 
-		var fileName string = fmt.Sprintf("%s_%d_%s", pageURL.Host, count, path.Base(link))
+		var fileName string = fmt.Sprintf("%s_%d_%s", pageURL.Host, count, path.Base(link.Path))
 
 		var filePath string
-		if web.HasImageExtention(link) {
+		if web.HasImageExtention(link.Path) {
 			filePath = filepath.Join(w.Conf.Save.OutputDir, config.SaveImagesDir, fileName)
-		} else if web.HasVideoExtention(link) {
+		} else if web.HasVideoExtention(link.Path) {
 			filePath = filepath.Join(w.Conf.Save.OutputDir, config.SaveVideosDir, fileName)
-		} else if web.HasAudioExtention(link) {
+		} else if web.HasAudioExtention(link.Path) {
 			filePath = filepath.Join(w.Conf.Save.OutputDir, config.SaveAudioDir, fileName)
-		} else if web.HasDocumentExtention(link) {
+		} else if web.HasDocumentExtention(link.Path) {
 			filePath = filepath.Join(w.Conf.Save.OutputDir, config.SaveDocumentsDir, fileName)
 		} else {
 			filePath = filepath.Join(w.Conf.Save.OutputDir, fileName)
 		}
 
 		err := web.FetchFile(
-			link,
+			link.String(),
 			w.Conf.Requests.UserAgent,
 			w.Conf.Requests.ContentFetchTimeoutMs,
 			filePath,
 		)
 		if err != nil {
-			logger.Error("Failed to fetch file at %s: %s", link, err)
+			logger.Error("Failed to fetch file located at %s: %s", link.String(), err)
 			return
 		}
 
@@ -122,31 +124,105 @@ func (w *Worker) saveContent(links []string, pageURL *url.URL) {
 	}
 }
 
-// Save page to the disk with a corresponding name
-func (w *Worker) savePage(baseURL *url.URL, pageData []byte) {
-	if w.Conf.Save.SavePages && w.Conf.Save.OutputDir != "" {
-		var pageName string = fmt.Sprintf("%s_%s.html", baseURL.Host, path.Base(baseURL.String()))
-		pageFile, err := os.Create(filepath.Join(w.Conf.Save.OutputDir, config.SavePagesDir, pageName))
-		if err != nil {
-			logger.Error("Failed to create page of \"%s\": %s", baseURL.String(), err)
-			return
+// Save page to the disk with a corresponding name; Download any src files, stylesheets and JS along the way
+func (w *Worker) savePage(baseURL url.URL, pageData []byte) {
+	var findPageFileContentURLs func([]byte) []url.URL = func(pageBody []byte) []url.URL {
+		var urls []url.URL
+
+		for _, link := range web.FindPageLinksDontResolve(pageData) {
+			if strings.Contains(link.Path, ".css") ||
+				strings.Contains(link.Path, ".scss") ||
+				strings.Contains(link.Path, ".js") ||
+				strings.Contains(link.Path, ".mjs") {
+				urls = append(urls, link)
+			}
 		}
-		defer pageFile.Close()
+		urls = append(urls, web.FindPageSrcLinksDontResolve(pageBody)...)
 
-		pageFile.Write(pageData)
-
-		logger.Info("Saved \"%s\"", pageName)
-		w.stats.PagesSaved++
+		return urls
 	}
+
+	var cleanLink func(url.URL, url.URL) url.URL = func(link url.URL, from url.URL) url.URL {
+		resolvedLink := web.ResolveLink(link, from.Host)
+		cleanLink, err := url.Parse(resolvedLink.Scheme + "://" + resolvedLink.Host + resolvedLink.Path)
+		if err != nil {
+			return resolvedLink
+		}
+		return *cleanLink
+	}
+
+	// Create directory with all file content on the page
+	var pageFilesDirectoryName string = fmt.Sprintf(
+		"%s_%s_files",
+		baseURL.Host,
+		strings.ReplaceAll(baseURL.Path, "/", "_"),
+	)
+	err := os.MkdirAll(filepath.Join(w.Conf.Save.OutputDir, config.SavePagesDir, pageFilesDirectoryName), os.ModePerm)
+	if err != nil {
+		logger.Error("Failed to create directory to store file contents of %s: %s", baseURL.String(), err)
+		return
+	}
+
+	// Save files on page
+	srcLinks := findPageFileContentURLs(pageData)
+	for _, srcLink := range srcLinks {
+		web.FetchFile(srcLink.String(),
+			w.Conf.Requests.UserAgent,
+			w.Conf.Requests.ContentFetchTimeoutMs,
+			filepath.Join(
+				w.Conf.Save.OutputDir,
+				config.SavePagesDir,
+				pageFilesDirectoryName,
+				path.Base(srcLink.String()),
+			),
+		)
+	}
+
+	// Redirect old content URLs to local files
+	for _, srcLink := range srcLinks {
+		cleanLink := cleanLink(srcLink, baseURL)
+		pageData = bytes.ReplaceAll(
+			pageData,
+			[]byte(srcLink.String()),
+			[]byte("./"+filepath.Join(pageFilesDirectoryName, path.Base(cleanLink.String()))),
+		)
+	}
+
+	// Create page output file
+	pageName := fmt.Sprintf(
+		"%s_%s.html",
+		baseURL.Host,
+		strings.ReplaceAll(baseURL.Path, "/", "_"),
+	)
+	outfile, err := os.Create(filepath.Join(
+		filepath.Join(w.Conf.Save.OutputDir, config.SavePagesDir),
+		pageName,
+	))
+	if err != nil {
+		fmt.Printf("Failed to create output file: %s\n", err)
+	}
+	defer outfile.Close()
+
+	outfile.Write(pageData)
+
+	logger.Info("Saved \"%s\"", pageName)
+	w.stats.PagesSaved++
 }
 
-func (w *Worker) saveResult(result web.Result) {
-	// write result to the output file
+const (
+	textTypeMatch = iota
+	textTypeEmail = iota
+)
 
+// Save text result to an appropriate file
+func (w *Worker) saveResult(result web.Result, textType int) {
+	// write result to the output file
 	var output io.Writer
-	if result.Search.Query == config.QueryEmail {
+	switch textType {
+	case textTypeEmail:
 		output = w.Conf.EmailsOutput
-	} else {
+
+	default:
 		output = w.Conf.TextOutput
 	}
 
@@ -257,7 +333,7 @@ func (w *Worker) Work() {
 		}
 
 		// find links
-		pageLinks := web.FindPageLinks(pageData, pageURL)
+		pageLinks := web.FindPageLinks(pageData, *pageURL)
 		go func() {
 			if job.Depth > 1 {
 				// decrement depth and add new jobs
@@ -267,9 +343,9 @@ func (w *Worker) Work() {
 					// add to the visit queue
 					w.Conf.VisitQueue.Lock.Lock()
 					for _, link := range pageLinks {
-						if link != job.URL {
+						if link.String() != job.URL {
 							err = queue.InsertNewJob(w.Conf.VisitQueue.VisitQueue, web.Job{
-								URL:    link,
+								URL:    link.String(),
 								Search: *w.Conf.Search,
 								Depth:  job.Depth,
 							})
@@ -283,9 +359,9 @@ func (w *Worker) Work() {
 				} else {
 					//  add to the in-memory channel
 					for _, link := range pageLinks {
-						if link != job.URL {
+						if link.String() != job.URL {
 							w.Jobs <- web.Job{
-								URL:    link,
+								URL:    link.String(),
 								Search: *w.Conf.Search,
 								Depth:  job.Depth,
 							}
@@ -301,9 +377,12 @@ func (w *Worker) Work() {
 		var savePage bool = false
 
 		switch job.Search.Query {
+		case config.QueryArchive:
+			savePage = true
+
 		case config.QueryImages:
 			// find image URLs, output images to the file while not saving already outputted ones
-			imageLinks := web.FindPageImages(pageData, pageURL)
+			imageLinks := web.FindPageImages(pageData, *pageURL)
 			if len(imageLinks) > 0 {
 				w.saveContent(imageLinks, pageURL)
 				savePage = true
@@ -312,7 +391,7 @@ func (w *Worker) Work() {
 		case config.QueryVideos:
 			// search for videos
 			// find video URLs, output videos to the files while not saving already outputted ones
-			videoLinks := web.FindPageVideos(pageData, pageURL)
+			videoLinks := web.FindPageVideos(pageData, *pageURL)
 			if len(videoLinks) > 0 {
 				w.saveContent(videoLinks, pageURL)
 				savePage = true
@@ -321,7 +400,7 @@ func (w *Worker) Work() {
 		case config.QueryAudio:
 			// search for audio
 			// find audio URLs, output audio to the file while not saving already outputted ones
-			audioLinks := web.FindPageAudio(pageData, pageURL)
+			audioLinks := web.FindPageAudio(pageData, *pageURL)
 			if len(audioLinks) > 0 {
 				w.saveContent(audioLinks, pageURL)
 				savePage = true
@@ -330,7 +409,7 @@ func (w *Worker) Work() {
 		case config.QueryDocuments:
 			// search for various documents
 			// find documents URLs, output docs to the file while not saving already outputted ones
-			docsLinks := web.FindPageDocuments(pageData, pageURL)
+			docsLinks := web.FindPageDocuments(pageData, *pageURL)
 			if len(docsLinks) > 0 {
 				w.saveContent(docsLinks, pageURL)
 				savePage = true
@@ -344,7 +423,7 @@ func (w *Worker) Work() {
 					PageURL: job.URL,
 					Search:  job.Search,
 					Data:    emailAddresses,
-				})
+				}, textTypeEmail)
 				w.stats.MatchesFound += uint64(len(emailAddresses))
 				savePage = true
 			}
@@ -353,11 +432,11 @@ func (w *Worker) Work() {
 			// search for everything
 
 			// files
-			var contentLinks []string
-			contentLinks = append(contentLinks, web.FindPageImages(pageData, pageURL)...)
-			contentLinks = append(contentLinks, web.FindPageAudio(pageData, pageURL)...)
-			contentLinks = append(contentLinks, web.FindPageVideos(pageData, pageURL)...)
-			contentLinks = append(contentLinks, web.FindPageDocuments(pageData, pageURL)...)
+			var contentLinks []url.URL
+			contentLinks = append(contentLinks, web.FindPageImages(pageData, *pageURL)...)
+			contentLinks = append(contentLinks, web.FindPageAudio(pageData, *pageURL)...)
+			contentLinks = append(contentLinks, web.FindPageVideos(pageData, *pageURL)...)
+			contentLinks = append(contentLinks, web.FindPageDocuments(pageData, *pageURL)...)
 			w.saveContent(contentLinks, pageURL)
 
 			if len(contentLinks) > 0 {
@@ -371,7 +450,7 @@ func (w *Worker) Work() {
 					PageURL: job.URL,
 					Search:  job.Search,
 					Data:    emailAddresses,
-				})
+				}, textTypeEmail)
 				w.stats.MatchesFound += uint64(len(emailAddresses))
 				savePage = true
 			}
@@ -393,7 +472,7 @@ func (w *Worker) Work() {
 						PageURL: job.URL,
 						Search:  job.Search,
 						Data:    matches,
-					})
+					}, textTypeMatch)
 					logger.Info("Found matches: %+v", matches)
 					w.stats.MatchesFound += uint64(len(matches))
 					savePage = true
@@ -405,7 +484,7 @@ func (w *Worker) Work() {
 						PageURL: job.URL,
 						Search:  job.Search,
 						Data:    []string{job.Search.Query},
-					})
+					}, textTypeMatch)
 					logger.Info("Found \"%s\" on page", job.Search.Query)
 					w.stats.MatchesFound++
 					savePage = true
@@ -414,8 +493,8 @@ func (w *Worker) Work() {
 		}
 
 		// save page
-		if savePage {
-			w.savePage(pageURL, pageData)
+		if savePage && w.Conf.Save.SavePages {
+			w.savePage(*pageURL, pageData)
 		}
 		pageData = nil
 		pageURL = nil

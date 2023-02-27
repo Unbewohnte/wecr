@@ -39,7 +39,7 @@ import (
 	"unbewohnte/wecr/worker"
 )
 
-const version = "v0.3.4"
+const version = "v0.3.5"
 
 const (
 	configFilename               string = "conf.json"
@@ -107,12 +107,12 @@ func init() {
 	if *wDir != "" {
 		workingDirectory = *wDir
 	} else {
-		exePath, err := os.Executable()
+		wdir, err := os.Getwd()
 		if err != nil {
-			logger.Error("Failed to determine executable's path: %s", err)
+			logger.Error("Failed to determine working directory path: %s", err)
 			return
 		}
-		workingDirectory = filepath.Dir(exePath)
+		workingDirectory = wdir
 	}
 
 	logger.Info("Working in \"%s\"", workingDirectory)
@@ -294,6 +294,8 @@ func main() {
 		logger.Info("Looking for audio (%+s)", web.AudioExtentions)
 	case config.QueryDocuments:
 		logger.Info("Looking for documents (%+s)", web.DocumentExtentions)
+	case config.QueryArchive:
+		logger.Info("Archiving every visited page")
 	case config.QueryEverything:
 		logger.Info("Looking for email addresses, images, videos, audio and various documents (%+s - %+s - %+s - %+s)",
 			web.ImageExtentions,
@@ -307,30 +309,6 @@ func main() {
 		} else {
 			logger.Info("Looking for text matches (%s)", conf.Search.Query)
 		}
-	}
-
-	// create and redirect logs if needed
-	if conf.Logging.OutputLogs {
-		if conf.Logging.LogsFile != "" {
-			// output logs to a file
-			logFile, err := os.Create(filepath.Join(workingDirectory, conf.Logging.LogsFile))
-			if err != nil {
-				logger.Error("Failed to create logs file: %s", err)
-				return
-			}
-			defer logFile.Close()
-
-			logger.Info("Outputting logs to %s", conf.Logging.LogsFile)
-			logger.SetOutput(logFile)
-		} else {
-			// output logs to stdout
-			logger.Info("Outputting logs to stdout")
-			logger.SetOutput(os.Stdout)
-		}
-	} else {
-		// no logging needed
-		logger.Info("No further logs will be outputted")
-		logger.SetOutput(nil)
 	}
 
 	// create visit queue file if not turned off
@@ -399,6 +377,30 @@ func main() {
 		board = dashboard.NewDashboard(conf.Dashboard.Port, conf, workerPool)
 		go board.Launch()
 		logger.Info("Launched dashboard at http://localhost:%d", conf.Dashboard.Port)
+	}
+
+	// create and redirect logs if needed
+	if conf.Logging.OutputLogs {
+		if conf.Logging.LogsFile != "" {
+			// output logs to a file
+			logFile, err := os.Create(filepath.Join(workingDirectory, conf.Logging.LogsFile))
+			if err != nil {
+				logger.Error("Failed to create logs file: %s", err)
+				return
+			}
+			defer logFile.Close()
+
+			logger.Info("Outputting logs to %s", conf.Logging.LogsFile)
+			logger.SetOutput(logFile)
+		} else {
+			// output logs to stdout
+			logger.Info("Outputting logs to stdout")
+			logger.SetOutput(os.Stdout)
+		}
+	} else {
+		// no logging needed
+		logger.Info("No further logs will be outputted")
+		logger.SetOutput(nil)
 	}
 
 	// launch concurrent scraping !
